@@ -1,0 +1,6 @@
+apply plugin: 'java-library'
+
+dependencies {
+    implementation project(':queryecho-collector')
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+}

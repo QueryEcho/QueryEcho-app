@@ -1,0 +1,98 @@
+HELP.md
+.gradle
+build/
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+### STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+bin/
+!**/src/main/**/bin/
+!**/src/test/**/bin/
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+out/
+!**/src/main/**/out/
+!**/src/test/**/out/
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+### VS Code ###
+.vscode/
+
+# ─────────────────────────────────────────────────────────────────────
+# 여기부터는 QueryEcho 프로젝트에서 추가한 항목
+# (위쪽은 Spring Initializr가 생성한 기본값)
+# ─────────────────────────────────────────────────────────────────────
+
+### 자격증명 / 로컬 전용 설정 ###
+# 지금은 H2 인메모리라 application.properties에 비밀번호가 없지만,
+# 실제 MySQL/PostgreSQL을 붙이는 순간 이 파일에 접속 정보가 들어간다.
+# "-local", "-secret" 접미사가 붙은 프로파일만 무시한다 - application-prod.properties처럼
+# 플레이스홀더만 담은 설정은 커밋되어야 하므로 통째로 막지 않는다.
+application-local.*
+application-*-local.*
+application-secret*.*
+**/src/main/resources/application-local.*
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.jks
+*.keystore
+credentials.json
+
+### H2 파일 DB ###
+# 데모는 인메모리(jdbc:h2:mem)지만, 파일 모드로 바꾸면 이 파일들이 생긴다.
+# 관측 대상 DB의 실제 데이터라 절대 저장소에 올라가면 안 된다.
+*.mv.db
+*.trace.db
+*.lock.db
+
+### 로그 ###
+*.log
+logs/
+
+### JVM 크래시 / 힙 덤프 ###
+# 부하 테스트(MVP2~3) 중 OOM이 나면 수백 MB짜리 덤프가 작업 디렉터리에 떨어진다.
+hs_err_pid*.log
+replay_pid*.log
+*.hprof
+
+### 로컬 실험용 임시 파일 ###
+# 수집 스텁, UI 프로브처럼 잠깐 만들고 지우는 스크립트가 실수로 커밋되는 것을 막는다.
+tmp-*
+*.tmp
+scratch/
+
+### Gradle 부가 산출물 ###
+.kotlin/
+.gradletasknamecache
+gradle-app.setting
+
+### Docker 로컬 오버라이드 ###
+# Collector/DB를 컨테이너로 띄울 때, 개인 환경에만 해당하는 포트/볼륨 설정.
+docker-compose.override.yml
+
+### OS 생성 파일 ###
+.DS_Store
+Thumbs.db
+desktop.ini

@@ -1,0 +1,39 @@
+// SDK 모듈: 다른 애플리케이션에도 라이브러리로 추가될 예정이라, 실행 가능한 jar(bootJar)를
+// 만드는 'org.springframework.boot' 플러그인은 일부러 적용하지 않는다. 'java-library'만으로
+// 충분하고, 버전 관리(BOM)는 루트 build.gradle의 subprojects 블록에서 이미 받고 있다.
+apply plugin: 'java-library'
+// 완전히 별도 프로젝트(다른 settings.gradle)에서 이 SDK를 라이브러리로 끌어다 쓰려면
+// project(':queryecho-sdk') 문법을 쓸 수 없다 - 그건 같은 멀티모듈 빌드 안에서만 통한다.
+// 대신 로컬 Maven 저장소(~/.m2)에 publish해두면, 별도 프로젝트에서
+// mavenLocal() + 'com.queryecho:queryecho-sdk:...' 좌표로 정상적으로 받아갈 수 있다.
+apply plugin: 'maven-publish'
+
+// 다른 모듈과 달리 여기서는 버전을 명시한다. io.spring.dependency-management(Spring BOM)가
+// 관리해주는 버전은 이 레포 안에서만 유효한 "관리된 버전"이라서, 이 jar를 완전히 별도인
+// 외부 프로젝트가 mavenLocal()로 받아갈 때는 그 BOM이 적용돼 있지 않다. 버전이 없는 채로
+// publish하면 외부 프로젝트에서 "어느 버전을 받아야 할지 몰라 의존성 해석 실패"가 난다.
+// (spring-boot-dependencies:4.1.0 BOM이 실제로 관리하는 버전을 그대로 고정한 것뿐이라,
+// 루트에서 BOM 버전을 올리면 이 값도 같이 맞춰줘야 한다.)
+dependencies {
+    // @Aspect, @Around, ProceedingJoinPoint (AspectJ) + spring-aop 프록시 인프라
+    implementation 'org.springframework.boot:spring-boot-starter-aspectj:4.1.0'
+    // TransactionSynchronizationManager, @EnableTransactionManagement
+    implementation 'org.springframework:spring-tx:7.0.8'
+    // 수집된 이벤트를 Collector 서버로 보낼 때 쓰는 JSON 직렬화.
+    // HTTP 클라이언트는 JDK 내장 java.net.http.HttpClient를 쓰므로 별도 의존성이 없지만,
+    // JSON만큼은 직접 문자열을 조립하면 이스케이프 처리에서 버그가 나기 쉬워 Jackson을 쓴다.
+    // Spring Boot 4.x는 Jackson 3(tools.jackson)을 기본으로 쓰므로 여기서도 3.x를 맞춘다.
+    implementation 'tools.jackson.core:jackson-databind:3.1.4'
+}
+
+publishing {
+    publications {
+        maven(MavenPublication) {
+            // components.java: java-library 플러그인이 만든 jar + 의존성 정보(POM)를 그대로 publish.
+            // groupId/artifactId/version은 루트 build.gradle의 subprojects 블록에서 이미
+            // group='com.queryecho', version='0.0.1-SNAPSHOT'으로 정해져 있고, artifactId는
+            // 모듈 폴더명(queryecho-sdk)을 기본값으로 그대로 쓴다.
+            from components.java
+        }
+    }
+}

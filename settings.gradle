@@ -1,0 +1,9 @@
+rootProject.name = 'QueryEcho'
+
+// 이 목록이 "레포 안에 어떤 배포 단위들이 있는지"를 나타낸다.
+// queryecho-sdk는 나중에 다른 애플리케이션에 라이브러리로 추가될 모듈이고,
+// 나머지(collector/dashboard/app)는 QueryEcho 자체 서버로 묶여 배포될 모듈이다.
+include 'queryecho-sdk'
+include 'queryecho-collector'
+include 'queryecho-dashboard'
+include 'queryecho-app'

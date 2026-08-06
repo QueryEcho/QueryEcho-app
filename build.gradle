@@ -1,0 +1,61 @@
+// 루트 프로젝트 자체는 컴파일할 코드가 없다. 여기서는 플러그인 버전만 선언(apply false)해두고,
+// 실제 적용은 subprojects 블록과 각 모듈의 build.gradle에서 한다.
+// 이렇게 해야 "org.springframework.boot" 플러그인이 주는 버전 관리(BOM)는 모든 모듈이
+// 동일하게 받으면서도, 실행 가능한 jar(bootJar)를 만드는 건 queryecho-app 모듈만 하도록
+// 모듈별로 다르게 설정할 수 있다.
+plugins {
+    id 'org.springframework.boot' version '4.1.0' apply false
+    id 'io.spring.dependency-management' version '1.1.7' apply false
+}
+
+description = 'QueryEcho - DB Observability Platform'
+
+subprojects {
+    apply plugin: 'java'
+    apply plugin: 'io.spring.dependency-management'
+
+    group = 'com.queryecho'
+    version = '0.0.1-SNAPSHOT'
+
+    java {
+        toolchain {
+            languageVersion = JavaLanguageVersion.of(21)
+        }
+    }
+
+    repositories {
+        mavenCentral()
+    }
+
+    // 싱글 모듈일 때는 'org.springframework.boot' 플러그인이 compileJava에 자동으로
+    // -parameters 옵션을 넣어줘서 @RequestParam(defaultValue=...) int limit 처럼
+    // 이름을 명시하지 않은 파라미터도 리플렉션으로 이름을 읽어올 수 있었다. 그 플러그인을
+    // queryecho-app에만 적용하는 멀티모듈 구조에서는, 컨트롤러가 실제로 있는
+    // queryecho-dashboard 같은 라이브러리 모듈은 이 옵션을 못 받아 파라미터 이름이
+    // 바이트코드에서 사라진다. 그래서 모든 모듈에 직접 명시해준다.
+    tasks.withType(JavaCompile).configureEach {
+        options.compilerArgs << '-parameters'
+    }
+
+    // Spring Boot BOM을 모든 모듈에 동일하게 적용해서, 각 모듈의 build.gradle에서
+    // Spring 계열 의존성 버전을 일일이 명시하지 않아도 되게 한다 (groupId:artifactId만 쓰면 됨).
+    dependencyManagement {
+        imports {
+            mavenBom "org.springframework.boot:spring-boot-dependencies:4.1.0"
+        }
+    }
+
+    // 모든 모듈에서 공통으로 쓰는 것들: Lombok, JUnit5 테스트 의존성.
+    dependencies {
+        compileOnly 'org.projectlombok:lombok'
+        annotationProcessor 'org.projectlombok:lombok'
+        testCompileOnly 'org.projectlombok:lombok'
+        testAnnotationProcessor 'org.projectlombok:lombok'
+        testImplementation 'org.springframework.boot:spring-boot-starter-test'
+        testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    }
+
+    tasks.named('test') {
+        useJUnitPlatform()
+    }
+}

@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="ko" data-theme="">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>QueryEcho — DB Observability</title>
+<style>
+/* ─────────────────────────────────────────────────────────────
+   색상 토큰. 차트 본문은 raw hex가 아니라 "역할(role)"로만 작성되고,
+   라이트/다크 전환은 이 블록 한 곳에서만 값이 바뀐다.
+   시리즈 색(--series-1/2)은 팔레트 검증기를 통과한 조합이다:
+     light #2a78d6 / #eb6834  → CVD ΔE 24.7, 일반시야 ΔE 33.6
+     dark  #3987e5 / #d95926  → CVD ΔE 26.8, 일반시야 ΔE 31.8
+   (목표 ≥8 / 하한 ≥15 이므로 여유 있게 통과)
+   ───────────────────────────────────────────────────────────── */
+.viz-root {
+  color-scheme: light;
+  --surface-1:      #fcfcfb;
+  --page:           #f9f9f7;
+  --text-primary:   #0b0b0b;
+  --text-secondary: #52514e;
+  --text-muted:     #898781;
+  --grid:           #e1e0d9;
+  --axis:           #c3c2b7;
+  --border:         rgba(11,11,11,0.10);
+  --series-1:       #2a78d6;
+  --series-2:       #eb6834;
+  --status-good:    #0ca30c;
+  --status-warning: #fab219;
+  --status-critical:#d03b3b;
+  --ghost:          rgba(11,11,11,0.04);
+}
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) .viz-root {
+    color-scheme: dark;
+    --surface-1:      #1a1a19;
+    --page:           #0d0d0d;
+    --text-primary:   #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted:     #898781;
+    --grid:           #2c2c2a;
+    --axis:           #383835;
+    --border:         rgba(255,255,255,0.10);
+    --series-1:       #3987e5;
+    --series-2:       #d95926;
+    --ghost:          rgba(255,255,255,0.06);
+  }
+}
+:root[data-theme="dark"] .viz-root {
+  color-scheme: dark;
+  --surface-1:      #1a1a19;
+  --page:           #0d0d0d;
+  --text-primary:   #ffffff;
+  --text-secondary: #c3c2b7;
+  --text-muted:     #898781;
+  --grid:           #2c2c2a;
+  --axis:           #383835;
+  --border:         rgba(255,255,255,0.10);
+  --series-1:       #3987e5;
+  --series-2:       #d95926;
+  --ghost:          rgba(255,255,255,0.06);
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+/* 색 토큰은 .viz-root에 선언되어 있으므로 그 "조상"인 html/body에서는 var()로 읽을 수 없다
+   (커스텀 프로퍼티는 아래로만 상속된다). 여기서 var(--page)를 쓰면 값이 무효가 되어
+   브라우저 기본색으로 떨어지는데, 라이트 모드에서는 우연히 비슷해 보여 눈치채기 어렵다.
+   실제로 다크 모드에서 제목 텍스트가 #ffffff가 아닌 UA 기본 회색으로 렌더되는 문제가 있었다.
+   그래서 페이지 배경만 리터럴로 깔고, 토큰을 쓰는 색상은 전부 .viz-root 안에서 처리한다. */
+html { background: #f9f9f7; }
+@media (prefers-color-scheme: dark) {
+  html:where(:not([data-theme="light"])) { background: #0d0d0d; }
+}
+html[data-theme="dark"] { background: #0d0d0d; }
+body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+.viz-root {
+  background: var(--page);
+  color: var(--text-primary);
+  min-height: 100vh;
+  padding: 28px 24px 48px;
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+/* ── header ── */
+.head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 4px; }
+.head h1 { font-size: 20px; font-weight: 650; margin: 0; letter-spacing: -0.01em; }
+.head .sub { font-size: 13px; color: var(--text-secondary); }
+.head .spacer { flex: 1; }
+
+/* ── 필터 행: 아래 모든 카드에 동일하게 적용되는 단 하나의 행 ── */
+.filters {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  margin: 16px 0 20px;
+}
+.filters label { font-size: 12px; color: var(--text-secondary); }
+select, .btn {
+  font: inherit; font-size: 13px;
+  color: var(--text-primary); background: var(--surface-1);
+  border: 1px solid var(--border); border-radius: 8px;
+  padding: 6px 10px; cursor: pointer;
+}
+.btn:hover, select:hover { background: var(--ghost); }
+.live { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-secondary); }
+.live .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--status-good); }
+.live.off .dot { background: var(--text-muted); }
+
+/* 재조회 중에는 스켈레톤 대신 직전 렌더를 흐리게 유지한다(레이아웃 점프 없음). */
+#content { transition: opacity .18s ease; }
+#content.is-loading { opacity: .55; }
+
+/* ── card ── */
+.card {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px 18px;
+}
+.card-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 2px; }
+.card-head h2 { font-size: 14px; font-weight: 600; margin: 0; }
+.card-head .cap { font-size: 12px; color: var(--text-secondary); }
+.card-head .spacer { flex: 1; }
+.tv-toggle {
+  font: inherit; font-size: 11px; color: var(--text-secondary);
+  background: none; border: 1px solid var(--border); border-radius: 6px;
+  padding: 3px 8px; cursor: pointer;
+}
+.tv-toggle:hover { background: var(--ghost); }
+
+/* ── KPI row ── */
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 12px; }
+.tile .label { font-size: 12px; color: var(--text-secondary); margin-bottom: 6px; }
+/* 큰 단독 숫자에는 tabular-nums를 쓰지 않는다(자릿수 폭이 균일해져 헐거워 보임). */
+.tile .value { font-size: 30px; font-weight: 620; line-height: 1.1; letter-spacing: -0.02em; }
+.tile .foot { font-size: 11px; color: var(--text-muted); margin-top: 6px; display: flex; align-items: center; gap: 5px; }
+.tile .foot .sdot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+
+/* ── charts ── */
+.charts { display: grid; gap: 12px; margin-bottom: 12px; }
+.chart-wrap { position: relative; }
+svg { display: block; width: 100%; overflow: visible; }
+.legend { display: flex; gap: 14px; margin: 6px 0 2px; }
+.legend .item { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-secondary); }
+.legend .key { width: 14px; height: 2px; border-radius: 1px; flex: none; }
+.legend .key.rect { height: 10px; width: 10px; border-radius: 2px; }
+
+.tip {
+  position: absolute; pointer-events: none; z-index: 5;
+  background: var(--surface-1); border: 1px solid var(--border);
+  border-radius: 8px; padding: 8px 10px; min-width: 128px;
+  box-shadow: 0 4px 14px rgba(0,0,0,.10);
+  font-size: 12px; opacity: 0; transition: opacity .1s;
+}
+.tip.on { opacity: 1; }
+.tip .when { color: var(--text-muted); font-size: 11px; margin-bottom: 5px; font-variant-numeric: tabular-nums; }
+.tip .row { display: flex; align-items: center; gap: 7px; margin-top: 3px; }
+.tip .row .key { width: 12px; height: 2px; border-radius: 1px; flex: none; }
+/* 툴팁 안에서는 "값"이 주인공, 시리즈 이름이 보조 (범례와 위계가 반대). */
+.tip .row .val { font-weight: 620; color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.tip .row .nm { color: var(--text-secondary); }
+
+.empty { padding: 34px 0; text-align: center; color: var(--text-muted); font-size: 13px; }
+
+/* ── tables ── */
+.tables { display: grid; gap: 12px; }
+.scroll { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 12px; }
+th {
+  text-align: left; font-weight: 600; color: var(--text-secondary);
+  padding: 7px 10px 7px 0; border-bottom: 1px solid var(--grid); white-space: nowrap;
+}
+td { padding: 7px 10px 7px 0; border-bottom: 1px solid var(--grid); vertical-align: top; }
+tr:last-child td { border-bottom: none; }
+/* 세로로 정렬되어야 하는 열에만 tabular-nums를 적용한다. */
+td.num, th.num, td.t, th.t { font-variant-numeric: tabular-nums; white-space: nowrap; }
+td.num, th.num { text-align: right; }
+td.sql {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11.5px; color: var(--text-primary);
+  max-width: 620px; word-break: break-word;
+}
+.pill {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 11px; color: var(--text-secondary); white-space: nowrap;
+}
+.pill .sdot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+.muted { color: var(--text-muted); }
+.tv { display: none; }
+.tv.on { display: block; }
+.hidden { display: none !important; }
+</style>
+</head>
+<body>
+<div class="viz-root">
+
+  <div class="head">
+    <h1>QueryEcho</h1>
+    <span class="sub">DB Observability — 쿼리 · 트랜잭션 실시간 지표</span>
+    <span class="spacer"></span>
+    <button class="btn" id="theme-btn" type="button">테마</button>
+  </div>
+
+  <!-- 필터는 한 행에만, 카드 안이 아니라 위에 둔다. 아래 모든 카드가 같은 조건으로 다시 그려진다. -->
+  <div class="filters">
+    <label for="f-bucket">집계 단위</label>
+    <select id="f-bucket">
+      <option value="5">5초</option>
+      <option value="10" selected>10초</option>
+      <option value="30">30초</option>
+      <option value="60">60초</option>
+    </select>
+
+    <label for="f-limit">표본 수</label>
+    <select id="f-limit">
+      <option value="200">최근 200건</option>
+      <option value="500" selected>최근 500건</option>
+      <option value="2000">최근 2000건</option>
+    </select>
+
+    <label for="f-refresh">자동 갱신</label>
+    <select id="f-refresh">
+      <option value="0">끔</option>
+      <option value="2000">2초</option>
+      <option value="5000" selected>5초</option>
+      <option value="10000">10초</option>
+    </select>
+
+    <button class="btn" id="refresh-btn" type="button">새로고침</button>
+    <span class="live" id="live"><span class="dot"></span><span id="live-text">—</span></span>
+  </div>
+
+  <div id="content">
+
+    <!-- 헤드라인 숫자들은 차트가 아니라 스탯 타일이 맞는 형태다. -->
+    <div class="kpis">
+      <div class="card tile">
+        <div class="label">수집된 트랜잭션</div>
+        <div class="value" id="k-tx">—</div>
+        <div class="foot" id="k-tx-foot">커밋 — · 롤백 —</div>
+      </div>
+      <div class="card tile">
+        <div class="label">롤백률</div>
+        <div class="value" id="k-rb">—</div>
+        <div class="foot" id="k-rb-foot"><span class="sdot"></span><span>—</span></div>
+      </div>
+      <div class="card tile">
+        <div class="label">슬로우 쿼리</div>
+        <div class="value" id="k-slow">—</div>
+        <div class="foot" id="k-slow-foot">임계값 —</div>
+      </div>
+      <div class="card tile">
+        <div class="label">평균 트랜잭션 시간</div>
+        <div class="value" id="k-avg">—</div>
+        <div class="foot">커밋·롤백 전체 평균</div>
+      </div>
+    </div>
+
+    <div class="charts">
+      <div class="card">
+        <div class="card-head">
+          <h2>쿼리 실행시간</h2>
+          <span class="cap" id="lat-cap">시간 구간별 평균 · 최대</span>
+          <span class="spacer"></span>
+          <button class="tv-toggle" data-tv="lat" type="button">표로 보기</button>
+        </div>
+        <!-- 시리즈가 2개이므로 범례는 항상 존재한다(색만으로 식별하게 두지 않음). -->
+        <div class="legend" id="lat-legend">
+          <span class="item"><span class="key rect" style="background:var(--series-1)"></span>평균</span>
+          <span class="item"><span class="key" style="background:var(--series-2)"></span>최대</span>
+        </div>
+        <div class="chart-wrap" id="lat-wrap">
+          <div id="lat-chart"></div>
+          <div class="tip" id="lat-tip"></div>
+        </div>
+        <div class="tv scroll" id="lat-tv"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h2>쿼리 실행 횟수</h2>
+          <span class="cap" id="vol-cap">시간 구간별 건수</span>
+          <span class="spacer"></span>
+          <button class="tv-toggle" data-tv="vol" type="button">표로 보기</button>
+        </div>
+        <!-- 단일 시리즈에는 범례를 두지 않는다 - 제목이 이미 무엇을 그렸는지 말하고 있다. -->
+        <div class="chart-wrap" id="vol-wrap">
+          <div id="vol-chart"></div>
+          <div class="tip" id="vol-tip"></div>
+        </div>
+        <div class="tv scroll" id="vol-tv"></div>
+      </div>
+    </div>
+
+    <div class="tables">
+      <div class="card">
+        <div class="card-head">
+          <h2>슬로우 쿼리</h2>
+          <span class="cap" id="slow-cap">—</span>
+        </div>
+        <div class="scroll" id="slow-table"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h2>반복 쿼리 (N+1 의심)</h2>
+          <span class="cap">같은 스레드에서 짧은 시간에 반복 실행된 패턴</span>
+        </div>
+        <div class="scroll" id="nplus-table"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h2>트랜잭션</h2>
+          <span class="cap">커밋 / 롤백 및 실패 사유</span>
+        </div>
+        <div class="scroll" id="tx-table"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var $ = function (id) { return document.getElementById(id); };
+  var css = function (name) {
+    return getComputedStyle(document.querySelector(".viz-root")).getPropertyValue(name).trim();
+  };
+
+  // ── 포맷터 ───────────────────────────────────────────────
+  function fmtCount(n) {
+    if (n >= 1e6) return (n / 1e6).toFixed(1) + "M";
+    if (n >= 1e4) return (n / 1e3).toFixed(1) + "K";
+    return n.toLocaleString("ko-KR");
+  }
+  function fmtMs(n) {
+    if (n == null) return "—";
+    if (n >= 1000) return (n / 1000).toFixed(2) + "s";
+    return Math.round(n) + "ms";
+  }
+  function fmtClock(iso) {
+    var d = new Date(iso);
+    if (isNaN(d)) return "—";
+    return String(d.getHours()).padStart(2, "0") + ":" +
+           String(d.getMinutes()).padStart(2, "0") + ":" +
+           String(d.getSeconds()).padStart(2, "0");
+  }
+  // y축 상한은 "깔끔한 숫자"로 올림하되, 단계를 촘촘히 둔다.
+  // 1/2/5/10만 쓰면 최대값 6.1s에 상한 10s가 잡혀 플롯 높이의 40%가 빈 공간이 된다.
+  var NICE_STEPS = [1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10];
+  function niceMax(v) {
+    if (!(v > 0)) return 1;
+    var exp = Math.pow(10, Math.floor(Math.log10(v)));
+    var f = v / exp;
+    for (var i = 0; i < NICE_STEPS.length; i++) if (f <= NICE_STEPS[i]) return NICE_STEPS[i] * exp;
+    return 10 * exp;
+  }
+
+  // ── DOM 헬퍼 (사용자 데이터는 반드시 textContent로) ──────
+  function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;   // SQL 등 외부 문자열은 절대 innerHTML로 넣지 않는다
+    return e;
+  }
+  function table(headers, rows) {
+    var t = el("table");
+    var thead = el("thead"), tr = el("tr");
+    headers.forEach(function (h) {
+      var th = el("th", h.cls || null, h.label);
+      tr.appendChild(th);
+    });
+    thead.appendChild(tr); t.appendChild(thead);
+    var tb = el("tbody");
+    rows.forEach(function (cells) {
+      var r = el("tr");
+      cells.forEach(function (c) {
+        var td = el("td", c.cls || null);
+        if (c.node) td.appendChild(c.node); else td.textContent = c.text;
+        r.appendChild(td);
+      });
+      tb.appendChild(r);
+    });
+    t.appendChild(tb);
+    return t;
+  }
+  function statusPill(color, label) {
+    var s = el("span", "pill");
+    var d = el("span", "sdot"); d.style.background = color;
+    s.appendChild(d); s.appendChild(el("span", null, label));   // 색 단독이 아니라 항상 라벨을 동반
+    return s;
+  }
+  function emptyBox(msg) { return el("div", "empty", msg); }
+
+  // ── SVG 빌더 ────────────────────────────────────────────
+  var NS = "http://www.w3.org/2000/svg";
+  function svgEl(tag, attrs) {
+    var e = document.createElementNS(NS, tag);
+    for (var k in attrs) if (attrs[k] != null) e.setAttribute(k, attrs[k]);
+    return e;
+  }
+  function axisText(x, y, text, anchor) {
+    var t = svgEl("text", {
+      x: x, y: y, "text-anchor": anchor || "middle",
+      "font-size": 10.5, fill: css("--text-muted"),
+      "font-variant-numeric": "tabular-nums"
+    });
+    t.textContent = text;
+    return t;
+  }
+
+  /**
+   * 실행시간 추이 - 선 2개(평균/최대). 둘 다 단위가 ms라 축 하나를 공유한다.
+   * (단위가 다른 "실행 횟수"는 절대 같은 축에 올리지 않고 아래 별도 차트로 뺐다.)
+   */
+  function renderLatency(buckets) {
+    var host = $("lat-chart");
+    host.textContent = "";
+    $("lat-tip").classList.remove("on");
+    if (!buckets.length) { host.appendChild(emptyBox("아직 수집된 쿼리가 없습니다.")); return; }
+
+    var W = host.clientWidth || 800, H = 260;
+    var m = { t: 14, r: 58, b: 30, l: 56 };
+    var iw = Math.max(10, W - m.l - m.r), ih = H - m.t - m.b;
+    var yMax = niceMax(Math.max.apply(null, buckets.map(function (b) { return b.maxDurationMs; })) || 1);
+    var n = buckets.length;
+    // 각 점은 "시각"이 아니라 "시간 구간"을 대표하므로 구간의 중앙에 찍는다.
+    // 아래 실행 횟수 차트의 막대도 같은 규칙으로 배치되어, 위아래 두 차트의
+    // 같은 시간대가 화면에서도 같은 x에 놓인다(가장자리~가장자리로 펴면 서로 어긋난다).
+    var band = iw / n;
+    var X = function (i) { return m.l + band * i + band / 2; };
+    var Y = function (v) { return m.t + ih - (ih * v) / yMax; };
+
+    var svg = svgEl("svg", { viewBox: "0 0 " + W + " " + H, height: H, role: "img" });
+    svg.setAttribute("aria-label", "시간 구간별 쿼리 실행시간 추이");
+
+    // 가로 그리드: 실선 헤어라인, 표면에서 한 단계만 떨어진 회색 (점선 금지)
+    for (var g = 0; g <= 4; g++) {
+      var gv = (yMax * g) / 4, gy = Y(gv);
+      svg.appendChild(svgEl("line", { x1: m.l, y1: gy, x2: m.l + iw, y2: gy, stroke: css("--grid"), "stroke-width": 1 }));
+      svg.appendChild(axisText(m.l - 8, gy + 3.5, fmtMs(gv), "end"));
+    }
+    svg.appendChild(svgEl("line", { x1: m.l, y1: m.t + ih, x2: m.l + iw, y2: m.t + ih, stroke: css("--axis"), "stroke-width": 1 }));
+
+    // x축 라벨은 최대 6개까지만 (겹침 방지)
+    var stride = Math.max(1, Math.ceil(n / 6));
+    for (var i = 0; i < n; i++) {
+      if (i % stride === 0 || i === n - 1) svg.appendChild(axisText(X(i), H - 10, fmtClock(buckets[i].bucketStart)));
+    }
+
+    var avgPts = buckets.map(function (b, i) { return [X(i), Y(b.avgDurationMs)]; });
+    var maxPts = buckets.map(function (b, i) { return [X(i), Y(b.maxDurationMs)]; });
+    var d = function (pts) { return pts.map(function (p, i) { return (i ? "L" : "M") + p[0] + " " + p[1]; }).join(" "); };
+
+    // 평균은 면(10% 불투명도 wash)으로 깔아 맥락을 주고, 최대는 선으로 강조한다.
+    svg.appendChild(svgEl("path", {
+      d: d(avgPts) + " L" + X(n - 1) + " " + (m.t + ih) + " L" + X(0) + " " + (m.t + ih) + " Z",
+      fill: css("--series-1"), "fill-opacity": 0.10, stroke: "none"
+    }));
+    svg.appendChild(svgEl("path", { d: d(avgPts), fill: "none", stroke: css("--series-1"), "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round" }));
+    svg.appendChild(svgEl("path", { d: d(maxPts), fill: "none", stroke: css("--series-2"), "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round" }));
+
+    // 끝점만 선별적으로 직접 라벨링한다 (모든 점에 숫자를 붙이지 않는다).
+    // 두 시리즈 값이 가까우면 라벨이 같은 자리에 겹친다. 이때 억지로 위아래로 밀어내면
+    // 라벨이 자기 선에서 떨어져 나가 오히려 노이즈가 되므로, 최대값 쪽 하나만 남긴다.
+    // (가려진 평균값은 크로스헤어 툴팁과 "표로 보기"에서 그대로 읽을 수 있다.)
+    var endAvg = avgPts[n - 1], endMax = maxPts[n - 1];
+    var collide = Math.abs(endAvg[1] - endMax[1]) < 14;
+    [[endAvg, "--series-1", buckets[n - 1].avgDurationMs, !collide],
+     [endMax, "--series-2", buckets[n - 1].maxDurationMs, true]]
+      .forEach(function (s) {
+        var p = s[0];
+        svg.appendChild(svgEl("circle", { cx: p[0], cy: p[1], r: 4.5, fill: css(s[1]), stroke: css("--surface-1"), "stroke-width": 2 }));
+        if (!s[3]) return;
+        var t = svgEl("text", { x: p[0] + 9, y: p[1] + 3.5, "font-size": 11, fill: css("--text-secondary"), "font-variant-numeric": "tabular-nums" });
+        t.textContent = fmtMs(s[2]);            // 라벨은 시리즈 색이 아니라 텍스트 토큰을 입는다
+        svg.appendChild(t);
+      });
+
+    // 크로스헤어 + 툴팁: 독자는 2px 선이 아니라 "시각"을 겨냥한다.
+    var cross = svgEl("line", { y1: m.t, y2: m.t + ih, stroke: css("--axis"), "stroke-width": 1, opacity: 0 });
+    var hoverA = svgEl("circle", { r: 4.5, fill: css("--series-1"), stroke: css("--surface-1"), "stroke-width": 2, opacity: 0 });
+    var hoverB = svgEl("circle", { r: 4.5, fill: css("--series-2"), stroke: css("--surface-1"), "stroke-width": 2, opacity: 0 });
+    svg.appendChild(cross); svg.appendChild(hoverA); svg.appendChild(hoverB);
+
+    var hit = svgEl("rect", { x: m.l, y: m.t, width: iw, height: ih, fill: "transparent", tabindex: 0 });
+    svg.appendChild(hit);
+    host.appendChild(svg);
+
+    var tip = $("lat-tip");
+    function show(idx, px) {
+      var b = buckets[idx];
+      cross.setAttribute("x1", X(idx)); cross.setAttribute("x2", X(idx)); cross.setAttribute("opacity", 1);
+      hoverA.setAttribute("cx", X(idx)); hoverA.setAttribute("cy", Y(b.avgDurationMs)); hoverA.setAttribute("opacity", 1);
+      hoverB.setAttribute("cx", X(idx)); hoverB.setAttribute("cy", Y(b.maxDurationMs)); hoverB.setAttribute("opacity", 1);
+      tip.textContent = "";
+      tip.appendChild(el("div", "when", fmtClock(b.bucketStart) + " · " + b.count + "건"));
+      [["최대", "--series-2", b.maxDurationMs], ["평균", "--series-1", b.avgDurationMs]].forEach(function (r) {
+        var row = el("div", "row");
+        var k = el("span", "key"); k.style.background = css(r[1]);
+        row.appendChild(k);
+        row.appendChild(el("span", "val", fmtMs(r[2])));
+        row.appendChild(el("span", "nm", r[0]));
+        tip.appendChild(row);
+      });
+      tip.classList.add("on");
+      var tw = tip.offsetWidth || 140;
+      tip.style.left = Math.min(Math.max(px - tw / 2, 0), (host.clientWidth || W) - tw) + "px";
+      tip.style.top = "6px";
+    }
+    function nearest(clientX) {
+      var r = svg.getBoundingClientRect();
+      var px = ((clientX - r.left) / r.width) * W;
+      var idx = Math.floor((px - m.l) / band);
+      return Math.min(n - 1, Math.max(0, idx));
+    }
+    hit.addEventListener("pointermove", function (e) { var i = nearest(e.clientX); show(i, X(i)); });
+    hit.addEventListener("pointerleave", function () {
+      tip.classList.remove("on");
+      [cross, hoverA, hoverB].forEach(function (n2) { n2.setAttribute("opacity", 0); });
+    });
+    // 키보드 포커스도 hover와 동일한 정보를 보여준다.
+    hit.addEventListener("focus", function () { show(n - 1, X(n - 1)); });
+    hit.addEventListener("blur", function () {
+      tip.classList.remove("on");
+      [cross, hoverA, hoverB].forEach(function (n2) { n2.setAttribute("opacity", 0); });
+    });
+  }
+
+  /** 실행 횟수 - 단일 시리즈 컬럼 차트 */
+  function renderVolume(buckets) {
+    var host = $("vol-chart");
+    host.textContent = "";
+    $("vol-tip").classList.remove("on");
+    if (!buckets.length) { host.appendChild(emptyBox("아직 수집된 쿼리가 없습니다.")); return; }
+
+    var W = host.clientWidth || 800, H = 190;
+    var m = { t: 14, r: 58, b: 30, l: 56 };
+    var iw = Math.max(10, W - m.l - m.r), ih = H - m.t - m.b;
+    var yMax = niceMax(Math.max.apply(null, buckets.map(function (b) { return b.count; })) || 1);
+    var n = buckets.length;
+    var band = iw / n;
+    var BAR = Math.min(24, Math.max(3, band - 2));   // 24px 상한 + 이웃과 2px 표면 간격
+    var Y = function (v) { return m.t + ih - (ih * v) / yMax; };
+
+    var svg = svgEl("svg", { viewBox: "0 0 " + W + " " + H, height: H, role: "img" });
+    svg.setAttribute("aria-label", "시간 구간별 쿼리 실행 횟수");
+
+    for (var g = 0; g <= 2; g++) {
+      var gv = (yMax * g) / 2, gy = Y(gv);
+      svg.appendChild(svgEl("line", { x1: m.l, y1: gy, x2: m.l + iw, y2: gy, stroke: css("--grid"), "stroke-width": 1 }));
+      svg.appendChild(axisText(m.l - 8, gy + 3.5, Math.round(gv).toLocaleString("ko-KR"), "end"));
+    }
+    svg.appendChild(svgEl("line", { x1: m.l, y1: m.t + ih, x2: m.l + iw, y2: m.t + ih, stroke: css("--axis"), "stroke-width": 1 }));
+
+    var stride = Math.max(1, Math.ceil(n / 6));
+    var tip = $("vol-tip");
+
+    buckets.forEach(function (b, i) {
+      var cx = m.l + band * i + band / 2;
+      var h = Math.max(1, ih - (Y(b.count) - m.t));
+      // 데이터 끝(위쪽)만 4px 라운드, 베이스라인 쪽은 각지게 유지한다.
+      var r = Math.min(4, BAR / 2, h);
+      var x = cx - BAR / 2, y = m.t + ih - h;
+      var path = "M" + x + " " + (y + h) + " L" + x + " " + (y + r) +
+                 " Q" + x + " " + y + " " + (x + r) + " " + y +
+                 " L" + (x + BAR - r) + " " + y +
+                 " Q" + (x + BAR) + " " + y + " " + (x + BAR) + " " + (y + r) +
+                 " L" + (x + BAR) + " " + (y + h) + " Z";
+      svg.appendChild(svgEl("path", { d: path, fill: css("--series-1") }));
+
+      // 히트 영역은 마크보다 크게 잡는다(얇은 막대를 정확히 겨냥하게 만들지 않는다).
+      var hit = svgEl("rect", { x: cx - band / 2, y: m.t, width: band, height: ih, fill: "transparent", tabindex: 0 });
+      function show() {
+        tip.textContent = "";
+        tip.appendChild(el("div", "when", fmtClock(b.bucketStart)));
+        var row = el("div", "row");
+        var k = el("span", "key"); k.style.background = css("--series-1");
+        row.appendChild(k);
+        row.appendChild(el("span", "val", b.count.toLocaleString("ko-KR") + "건"));
+        row.appendChild(el("span", "nm", "실행"));
+        tip.appendChild(row);
+        tip.classList.add("on");
+        var tw = tip.offsetWidth || 140;
+        tip.style.left = Math.min(Math.max(cx - tw / 2, 0), (host.clientWidth || W) - tw) + "px";
+        tip.style.top = "0px";
+      }
+      hit.addEventListener("pointerenter", show);
+      hit.addEventListener("focus", show);
+      hit.addEventListener("pointerleave", function () { tip.classList.remove("on"); });
+      hit.addEventListener("blur", function () { tip.classList.remove("on"); });
+      svg.appendChild(hit);
+
+      if (i % stride === 0 || i === n - 1) svg.appendChild(axisText(cx, H - 10, fmtClock(b.bucketStart)));
+    });
+
+    host.appendChild(svg);
+  }
+
+  // 모든 차트에는 표(table view) 쌍둥이가 존재한다 - 색/호버 없이도 모든 값에 도달 가능해야 한다.
+  function renderChartTables(buckets) {
+    var latTv = $("lat-tv"), volTv = $("vol-tv");
+    latTv.textContent = ""; volTv.textContent = "";
+    if (!buckets.length) return;
+    latTv.appendChild(table(
+      [{ label: "구간 시작", cls: "t" }, { label: "평균", cls: "num" }, { label: "최대", cls: "num" }],
+      buckets.map(function (b) {
+        return [{ text: fmtClock(b.bucketStart), cls: "t" },
+                { text: fmtMs(b.avgDurationMs), cls: "num" },
+                { text: fmtMs(b.maxDurationMs), cls: "num" }];
+      })
+    ));
+    volTv.appendChild(table(
+      [{ label: "구간 시작", cls: "t" }, { label: "실행 횟수", cls: "num" }],
+      buckets.map(function (b) {
+        return [{ text: fmtClock(b.bucketStart), cls: "t" },
+                { text: b.count.toLocaleString("ko-KR"), cls: "num" }];
+      })
+    ));
+  }
+
+  // ── KPI ─────────────────────────────────────────────────
+  function renderKpis(stats, slow) {
+    $("k-tx").textContent = fmtCount(stats.total);
+    $("k-tx-foot").textContent = "커밋 " + fmtCount(stats.commitCount) + " · 롤백 " + fmtCount(stats.rollbackCount);
+
+    var pct = stats.total ? stats.rollbackRate * 100 : 0;
+    $("k-rb").textContent = stats.total ? pct.toFixed(1) + "%" : "—";
+    // 상태는 색 단독으로 전달하지 않고 항상 라벨을 동반한다.
+    var lvl = pct >= 10 ? [css("--status-critical"), "위험"]
+            : pct >= 3  ? [css("--status-warning"), "주의"]
+            : [css("--status-good"), "정상"];
+    var f = $("k-rb-foot"); f.textContent = "";
+    f.appendChild(statusPill(lvl[0], stats.total ? lvl[1] : "데이터 없음"));
+
+    $("k-slow").textContent = fmtCount(slow.count);
+    $("k-slow-foot").textContent = "임계값 " + fmtMs(slow.thresholdMs) + " 초과";
+    $("k-avg").textContent = stats.total ? fmtMs(stats.avgDurationMs) : "—";
+  }
+
+  // ── 표들 ────────────────────────────────────────────────
+  function renderSlowTable(slow) {
+    var host = $("slow-table"); host.textContent = "";
+    $("slow-cap").textContent = "임계값 " + fmtMs(slow.thresholdMs) + " 초과 · " + slow.count + "건";
+    if (!slow.items.length) { host.appendChild(emptyBox("임계값을 넘은 쿼리가 없습니다.")); return; }
+    host.appendChild(table(
+      [{ label: "시각", cls: "t" }, { label: "실행시간", cls: "num" }, { label: "SQL" }, { label: "스레드" }],
+      slow.items.map(function (q) {
+        return [{ text: fmtClock(q.executedAt), cls: "t" },
+                { text: fmtMs(q.durationMs), cls: "num" },
+                { text: q.normalizedSql, cls: "sql" },
+                { text: q.threadName, cls: "muted" }];
+      })
+    ));
+  }
+
+  function renderNPlusOne(queries) {
+    var host = $("nplus-table"); host.textContent = "";
+    // 같은 정규화 SQL 중 반복 횟수가 가장 높았던 순간만 대표로 남긴다.
+    var byPattern = {};
+    queries.forEach(function (q) {
+      var k = q.threadName + "|" + q.normalizedSql;
+      if (!byPattern[k] || q.recentRepeatCount > byPattern[k].recentRepeatCount) byPattern[k] = q;
+    });
+    var rows = Object.keys(byPattern).map(function (k) { return byPattern[k]; })
+      .filter(function (q) { return q.recentRepeatCount >= 5; })
+      .sort(function (a, b) { return b.recentRepeatCount - a.recentRepeatCount; })
+      .slice(0, 20);
+    if (!rows.length) { host.appendChild(emptyBox("반복 패턴이 감지되지 않았습니다.")); return; }
+    host.appendChild(table(
+      [{ label: "반복", cls: "num" }, { label: "SQL" }, { label: "스레드" }, { label: "마지막 실행", cls: "t" }],
+      rows.map(function (q) {
+        return [{ text: q.recentRepeatCount + "회", cls: "num" },
+                { text: q.normalizedSql, cls: "sql" },
+                { text: q.threadName, cls: "muted" },
+                { text: fmtClock(q.executedAt), cls: "t" }];
+      })
+    ));
+  }
+
+  function renderTxTable(txs) {
+    var host = $("tx-table"); host.textContent = "";
+    if (!txs.length) { host.appendChild(emptyBox("아직 수집된 트랜잭션이 없습니다.")); return; }
+    host.appendChild(table(
+      [{ label: "시각", cls: "t" }, { label: "결과" }, { label: "소요시간", cls: "num" }, { label: "트랜잭션" }, { label: "실패 사유" }],
+      txs.map(function (t) {
+        var ok = t.status === "COMMIT";
+        return [{ text: fmtClock(t.executedAt), cls: "t" },
+                { node: statusPill(ok ? css("--status-good") : css("--status-critical"), ok ? "커밋" : "롤백") },
+                { text: fmtMs(t.durationMs), cls: "num" },
+                { text: t.transactionName, cls: "sql" },
+                { text: t.failureReason || "—", cls: t.failureReason ? null : "muted" }];
+      })
+    ));
+  }
+
+  // ── 데이터 로드 ─────────────────────────────────────────
+  var API = "/api/v1/metrics";
+  function getJson(url) {
+    return fetch(url, { headers: { Accept: "application/json" } }).then(function (r) {
+      if (!r.ok) throw new Error(r.status + " " + url);
+      return r.json();
+    });
+  }
+
+  var timer = null;
+  function load() {
+    var bucket = $("f-bucket").value, limit = $("f-limit").value;
+    $("content").classList.add("is-loading");   // 스켈레톤 대신 직전 렌더를 흐리게 유지
+    return Promise.all([
+      getJson(API + "/transactions/stats"),
+      getJson(API + "/queries/slow?limit=50"),
+      getJson(API + "/queries/heatmap?bucketSeconds=" + bucket + "&limit=" + limit),
+      getJson(API + "/queries?limit=" + limit),
+      getJson(API + "/transactions?limit=50")
+    ]).then(function (res) {
+      var stats = res[0], slow = res[1], heat = res[2], queries = res[3], txs = res[4];
+      var buckets = heat.buckets || [];
+      $("lat-cap").textContent = heat.bucketSeconds + "초 구간별 평균 · 최대";
+      $("vol-cap").textContent = heat.bucketSeconds + "초 구간별 건수";
+      // 자동 갱신이 표 보기 상태를 덮어쓰지 않도록, 현재 표 보기 여부까지 함께 본다.
+      // (이걸 빼면 5초마다 재조회될 때 표 보기 중인데 범례만 다시 나타난다.)
+      $("lat-legend").classList.toggle("hidden", buckets.length === 0 || $("lat-tv").classList.contains("on"));
+      renderKpis(stats, slow);
+      renderLatency(buckets);
+      renderVolume(buckets);
+      renderChartTables(buckets);
+      renderSlowTable(slow);
+      renderNPlusOne(queries);
+      renderTxTable(txs);
+      $("live").classList.remove("off");
+      $("live-text").textContent = "갱신 " + fmtClock(new Date().toISOString());
+      lastBuckets = buckets;
+    }).catch(function (err) {
+      $("live").classList.add("off");
+      $("live-text").textContent = "연결 실패";
+      console.error("[QueryEcho] load failed", err);
+    }).finally(function () {
+      $("content").classList.remove("is-loading");
+    });
+  }
+  var lastBuckets = [];
+
+  function restartTimer() {
+    if (timer) clearInterval(timer);
+    var ms = parseInt($("f-refresh").value, 10);
+    if (ms > 0) timer = setInterval(load, ms);
+  }
+
+  // ── 이벤트 배선 ─────────────────────────────────────────
+  ["f-bucket", "f-limit"].forEach(function (id) { $(id).addEventListener("change", load); });
+  $("f-refresh").addEventListener("change", restartTimer);
+  $("refresh-btn").addEventListener("click", load);
+
+  document.querySelectorAll(".tv-toggle").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var key = btn.getAttribute("data-tv");
+      var tv = $(key + "-tv"), wrap = $(key + "-wrap");
+      var on = tv.classList.toggle("on");
+      wrap.classList.toggle("hidden", on);
+      if (key === "lat") $("lat-legend").classList.toggle("hidden", on || lastBuckets.length === 0);
+      btn.textContent = on ? "차트로 보기" : "표로 보기";
+    });
+  });
+
+  $("theme-btn").addEventListener("click", function () {
+    var cur = document.documentElement.getAttribute("data-theme");
+    var dark = cur === "dark" || (!cur && matchMedia("(prefers-color-scheme: dark)").matches);
+    document.documentElement.setAttribute("data-theme", dark ? "light" : "dark");
+    // 색 토큰이 바뀌었으므로 SVG를 다시 그린다(SVG 속성은 CSS 변수를 따라가지 않는다).
+    renderLatency(lastBuckets); renderVolume(lastBuckets);
+  });
+
+  // 폭이 바뀌면 SVG를 다시 계산한다(픽셀 좌표로 그리므로 늘려서 왜곡시키지 않는다).
+  var rt = null;
+  window.addEventListener("resize", function () {
+    clearTimeout(rt);
+    rt = setTimeout(function () { renderLatency(lastBuckets); renderVolume(lastBuckets); }, 150);
+  });
+
+  load();
+  restartTimer();
+})();
+</script>
+</body>
+</html>
