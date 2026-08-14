@@ -1,11 +1,10 @@
 package com.queryecho.queryecho.sdk.interceptor;
 
-import com.queryecho.queryecho.sdk.config.QueryEchoSdkProperties;
 import com.queryecho.queryecho.sdk.publisher.MetricEventPublisher;
 import javax.sql.DataSource;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.core.Ordered;
-import org.springframework.stereotype.Component;
 
 /**
  * 컨테이너가 만든 DataSource 빈을 자동으로 {@link QueryEchoDataSourceProxy}로 감싼다.
@@ -21,28 +20,29 @@ import org.springframework.stereotype.Component;
  *  - HikariDataSource 같은 구현체는 초기화(@PostConstruct, afterPropertiesSet 등)가
  *    끝난 뒤에야 커넥션 풀이 실제로 준비된다. 초기화가 완전히 끝난 "이후"의 결과물을
  *    감싸야 안전하게 프록시를 씌울 수 있다.
+ *
+ * 이 클래스에는 @Component가 없다. 등록은
+ * {@link com.queryecho.queryecho.sdk.config.QueryEchoSdkAutoConfiguration}이 전담한다
+ * (등록 경로가 둘이면 스캔 범위에 들어오는 앱에서 빈이 두 번 만들어진다).
+ * queryecho.sdk.enabled=false 처리도 자동 구성의 @ConditionalOnProperty가 담당하므로,
+ * 여기까지 왔다는 것은 이미 "켜진" 상태라는 뜻이다.
  */
-@Component
 public class QueryEchoDataSourceBeanPostProcessor implements BeanPostProcessor, Ordered {
 
-    private final MetricEventPublisher publisher;
-    private final QueryEchoSdkProperties properties;
+    // ObjectProvider로 지연 조회하는 이유는 자동 구성 클래스의 @Bean 메서드 주석 참고
+    // (BeanPostProcessor는 아주 이른 시점에 만들어지므로, 여기서 publisher를 즉시
+    //  주입받으면 publisher와 그 의존성들이 너무 일찍 생성된다).
+    private final ObjectProvider<MetricEventPublisher> publisherProvider;
 
-    public QueryEchoDataSourceBeanPostProcessor(MetricEventPublisher publisher, QueryEchoSdkProperties properties) {
-        this.publisher = publisher;
-        this.properties = properties;
+    public QueryEchoDataSourceBeanPostProcessor(ObjectProvider<MetricEventPublisher> publisherProvider) {
+        this.publisherProvider = publisherProvider;
     }
 
     @Override
     public Object postProcessAfterInitialization(Object bean, String beanName) {
-        // queryecho.enabled=false로 SDK를 완전히 끌 수 있게 해둔다.
-        // (계측 오버헤드를 배제하고 순수 성능을 측정하고 싶을 때 유용)
-        if (!properties.isEnabled()) {
-            return bean;
-        }
         // 이미 감싼 인스턴스를 다시 감싸는 것을 방지 (멀티 DataSource 빈 재등록 등 방어)
         if (bean instanceof DataSource dataSource && !(bean instanceof QueryEchoDataSourceProxy)) {
-            return new QueryEchoDataSourceProxy(dataSource, publisher);
+            return new QueryEchoDataSourceProxy(dataSource, publisherProvider.getObject());
         }
         return bean;
     }

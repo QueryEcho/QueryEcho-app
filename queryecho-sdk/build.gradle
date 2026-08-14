@@ -17,6 +17,10 @@ apply plugin: 'maven-publish'
 dependencies {
     // @Aspect, @Around, ProceedingJoinPoint (AspectJ) + spring-aop 프록시 인프라
     implementation 'org.springframework.boot:spring-boot-starter-aspectj:4.1.0'
+    // @AutoConfiguration, @ConditionalOnClass, @ConditionalOnProperty.
+    // 전이 의존성으로도 들어오지만, 이 SDK가 "자동 구성을 제공하는 라이브러리"라는 사실이
+    // 곧 이 의존성의 존재 이유이므로 명시적으로 선언한다.
+    implementation 'org.springframework.boot:spring-boot-autoconfigure:4.1.0'
     // TransactionSynchronizationManager, @EnableTransactionManagement
     implementation 'org.springframework:spring-tx:7.0.8'
     // 수집된 이벤트를 Collector 서버로 보낼 때 쓰는 JSON 직렬화.

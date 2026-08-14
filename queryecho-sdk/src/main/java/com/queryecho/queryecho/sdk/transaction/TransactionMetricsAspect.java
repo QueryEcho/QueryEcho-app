@@ -4,12 +4,14 @@ import com.queryecho.queryecho.sdk.dto.TxMetricEvent;
 import com.queryecho.queryecho.sdk.dto.TxStatus;
 import com.queryecho.queryecho.sdk.publisher.MetricEventPublisher;
 import java.time.Instant;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.core.annotation.Order;
-import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
@@ -37,14 +39,19 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
  *    등록해야 "트랜잭션 1개 = 이벤트 1개"가 보장된다.
  *
  * 이 Aspect가 트랜잭션 어드바이저보다 안쪽에서 실행되어야 하는 이유는
- * {@link TransactionManagementConfig}의 주석 참고.
+ * {@link com.queryecho.queryecho.sdk.config.QueryEchoSdkAutoConfiguration}의 주석 참고.
+ * (@Component가 없는 이유도 같은 곳에 적어두었다 - 등록은 자동 구성이 전담한다.)
  */
 @Aspect
-@Component
 @Order(200)
 public class TransactionMetricsAspect {
 
+    private static final Logger log = LoggerFactory.getLogger(TransactionMetricsAspect.class);
+
     private static final ThreadLocal<Boolean> ALREADY_TRACKING = ThreadLocal.withInitial(() -> false);
+
+    /** 순서가 뒤집힌 환경에서 매 호출마다 경고가 쏟아지지 않도록 최초 1회만 남긴다. */
+    private static final AtomicBoolean ORDER_WARNING_LOGGED = new AtomicBoolean();
 
     private final MetricEventPublisher publisher;
 
@@ -55,13 +62,23 @@ public class TransactionMetricsAspect {
     @Around("@annotation(org.springframework.transaction.annotation.Transactional) "
             + "|| @within(org.springframework.transaction.annotation.Transactional)")
     public Object around(ProceedingJoinPoint joinPoint) throws Throwable {
-        // 트랜잭션 어드바이저가 이미 물리 트랜잭션을 시작해준 뒤에만 여기 도달한다
-        // (order 설정 덕분). 그래도 방어적으로 isSynchronizationActive를 확인해서,
-        // 어떤 이유로든 동기화가 비활성 상태면 그냥 원본 로직만 수행하고 계측을 건너뛴다.
-        boolean isOutermost = TransactionSynchronizationManager.isSynchronizationActive()
-                && !ALREADY_TRACKING.get();
+        // 트랜잭션 어드바이저가 이미 물리 트랜잭션을 시작해준 뒤에만 여기 도달한다(order 설정 덕분).
+        // 그런데 타깃 애플리케이션이 자체 @EnableTransactionManagement로 order를 200 이상으로
+        // 잡아버리면 순서가 뒤집혀 여기서 동기화가 비활성 상태가 된다. 그냥 건너뛰면 트랜잭션
+        // 지표가 "이유 없이 하나도 안 쌓이는" 상태가 되어 원인을 찾기 어려우므로, 최초 1회
+        // 경고를 남겨 진단 가능하게 만든다.
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            if (ORDER_WARNING_LOGGED.compareAndSet(false, true)) {
+                log.warn("[QueryEcho] {} 호출 시점에 활성 트랜잭션이 없어 트랜잭션 지표를 수집하지 못했습니다. "
+                                + "타깃 애플리케이션이 @EnableTransactionManagement(order >= 200)으로 "
+                                + "QueryEcho의 order=100 설정을 덮어썼는지 확인하세요.",
+                        joinPoint.getSignature().toShortString());
+            }
+            return joinPoint.proceed();
+        }
 
-        if (!isOutermost) {
+        // 중첩 호출(REQUIRED 전파)에서는 물리 트랜잭션이 하나뿐이므로 가장 바깥에서만 계측한다.
+        if (ALREADY_TRACKING.get()) {
             return joinPoint.proceed();
         }
 
