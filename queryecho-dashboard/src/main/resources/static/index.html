@@ -336,10 +336,18 @@ td.sql {
     if (n >= 1e4) return (n / 1e3).toFixed(1) + "K";
     return n.toLocaleString("ko-KR");
   }
-  function fmtMs(n) {
-    if (n == null) return "—";
-    if (n >= 1000) return (n / 1000).toFixed(2) + "s";
-    return Math.round(n) + "ms";
+  /**
+   * 서버는 소요 시간을 마이크로초로 내려준다(ms로 저장하면 1ms 미만 쿼리가 전부 0이 되기 때문).
+   * 표시는 사람에게 익숙한 ms로 하되, 자릿수는 값의 크기에 맞춘다.
+   * 1ms 미만을 "0ms"로 뭉개면 화면에서도 데이터가 죽어버리므로 소수점을 남긴다.
+   */
+  function fmtDur(us) {
+    if (us == null) return "—";
+    if (us === 0) return "0ms";
+    if (us >= 1e6) return (us / 1e6).toFixed(2) + "s";
+    if (us >= 1e4) return Math.round(us / 1000) + "ms";
+    if (us >= 1e3) return (us / 1000).toFixed(1) + "ms";
+    return (us / 1000).toFixed(2) + "ms";
   }
   function fmtClock(iso) {
     var d = new Date(iso);
@@ -413,7 +421,7 @@ td.sql {
   }
 
   /**
-   * 실행시간 추이 - 선 2개(평균/최대). 둘 다 단위가 ms라 축 하나를 공유한다.
+   * 실행시간 추이 - 선 2개(평균/최대). 둘 다 단위가 같아(us) 축 하나를 공유한다.
    * (단위가 다른 "실행 횟수"는 절대 같은 축에 올리지 않고 아래 별도 차트로 뺐다.)
    */
   function renderLatency(buckets) {
@@ -425,7 +433,7 @@ td.sql {
     var W = host.clientWidth || 800, H = 260;
     var m = { t: 14, r: 58, b: 30, l: 56 };
     var iw = Math.max(10, W - m.l - m.r), ih = H - m.t - m.b;
-    var yMax = niceMax(Math.max.apply(null, buckets.map(function (b) { return b.maxDurationMs; })) || 1);
+    var yMax = niceMax(Math.max.apply(null, buckets.map(function (b) { return b.maxDurationUs; })) || 1);
     var n = buckets.length;
     // 각 점은 "시각"이 아니라 "시간 구간"을 대표하므로 구간의 중앙에 찍는다.
     // 아래 실행 횟수 차트의 막대도 같은 규칙으로 배치되어, 위아래 두 차트의
@@ -441,7 +449,7 @@ td.sql {
     for (var g = 0; g <= 4; g++) {
       var gv = (yMax * g) / 4, gy = Y(gv);
       svg.appendChild(svgEl("line", { x1: m.l, y1: gy, x2: m.l + iw, y2: gy, stroke: css("--grid"), "stroke-width": 1 }));
-      svg.appendChild(axisText(m.l - 8, gy + 3.5, fmtMs(gv), "end"));
+      svg.appendChild(axisText(m.l - 8, gy + 3.5, fmtDur(gv), "end"));
     }
     svg.appendChild(svgEl("line", { x1: m.l, y1: m.t + ih, x2: m.l + iw, y2: m.t + ih, stroke: css("--axis"), "stroke-width": 1 }));
 
@@ -451,8 +459,8 @@ td.sql {
       if (i % stride === 0 || i === n - 1) svg.appendChild(axisText(X(i), H - 10, fmtClock(buckets[i].bucketStart)));
     }
 
-    var avgPts = buckets.map(function (b, i) { return [X(i), Y(b.avgDurationMs)]; });
-    var maxPts = buckets.map(function (b, i) { return [X(i), Y(b.maxDurationMs)]; });
+    var avgPts = buckets.map(function (b, i) { return [X(i), Y(b.avgDurationUs)]; });
+    var maxPts = buckets.map(function (b, i) { return [X(i), Y(b.maxDurationUs)]; });
     var d = function (pts) { return pts.map(function (p, i) { return (i ? "L" : "M") + p[0] + " " + p[1]; }).join(" "); };
 
     // 평균은 면(10% 불투명도 wash)으로 깔아 맥락을 주고, 최대는 선으로 강조한다.
@@ -469,14 +477,14 @@ td.sql {
     // (가려진 평균값은 크로스헤어 툴팁과 "표로 보기"에서 그대로 읽을 수 있다.)
     var endAvg = avgPts[n - 1], endMax = maxPts[n - 1];
     var collide = Math.abs(endAvg[1] - endMax[1]) < 14;
-    [[endAvg, "--series-1", buckets[n - 1].avgDurationMs, !collide],
-     [endMax, "--series-2", buckets[n - 1].maxDurationMs, true]]
+    [[endAvg, "--series-1", buckets[n - 1].avgDurationUs, !collide],
+     [endMax, "--series-2", buckets[n - 1].maxDurationUs, true]]
       .forEach(function (s) {
         var p = s[0];
         svg.appendChild(svgEl("circle", { cx: p[0], cy: p[1], r: 4.5, fill: css(s[1]), stroke: css("--surface-1"), "stroke-width": 2 }));
         if (!s[3]) return;
         var t = svgEl("text", { x: p[0] + 9, y: p[1] + 3.5, "font-size": 11, fill: css("--text-secondary"), "font-variant-numeric": "tabular-nums" });
-        t.textContent = fmtMs(s[2]);            // 라벨은 시리즈 색이 아니라 텍스트 토큰을 입는다
+        t.textContent = fmtDur(s[2]);            // 라벨은 시리즈 색이 아니라 텍스트 토큰을 입는다
         svg.appendChild(t);
       });
 
@@ -494,15 +502,15 @@ td.sql {
     function show(idx, px) {
       var b = buckets[idx];
       cross.setAttribute("x1", X(idx)); cross.setAttribute("x2", X(idx)); cross.setAttribute("opacity", 1);
-      hoverA.setAttribute("cx", X(idx)); hoverA.setAttribute("cy", Y(b.avgDurationMs)); hoverA.setAttribute("opacity", 1);
-      hoverB.setAttribute("cx", X(idx)); hoverB.setAttribute("cy", Y(b.maxDurationMs)); hoverB.setAttribute("opacity", 1);
+      hoverA.setAttribute("cx", X(idx)); hoverA.setAttribute("cy", Y(b.avgDurationUs)); hoverA.setAttribute("opacity", 1);
+      hoverB.setAttribute("cx", X(idx)); hoverB.setAttribute("cy", Y(b.maxDurationUs)); hoverB.setAttribute("opacity", 1);
       tip.textContent = "";
       tip.appendChild(el("div", "when", fmtClock(b.bucketStart) + " · " + b.count + "건"));
-      [["최대", "--series-2", b.maxDurationMs], ["평균", "--series-1", b.avgDurationMs]].forEach(function (r) {
+      [["최대", "--series-2", b.maxDurationUs], ["평균", "--series-1", b.avgDurationUs]].forEach(function (r) {
         var row = el("div", "row");
         var k = el("span", "key"); k.style.background = css(r[1]);
         row.appendChild(k);
-        row.appendChild(el("span", "val", fmtMs(r[2])));
+        row.appendChild(el("span", "val", fmtDur(r[2])));
         row.appendChild(el("span", "nm", r[0]));
         tip.appendChild(row);
       });
@@ -609,8 +617,8 @@ td.sql {
       [{ label: "구간 시작", cls: "t" }, { label: "평균", cls: "num" }, { label: "최대", cls: "num" }],
       buckets.map(function (b) {
         return [{ text: fmtClock(b.bucketStart), cls: "t" },
-                { text: fmtMs(b.avgDurationMs), cls: "num" },
-                { text: fmtMs(b.maxDurationMs), cls: "num" }];
+                { text: fmtDur(b.avgDurationUs), cls: "num" },
+                { text: fmtDur(b.maxDurationUs), cls: "num" }];
       })
     ));
     volTv.appendChild(table(
@@ -637,20 +645,20 @@ td.sql {
     f.appendChild(statusPill(lvl[0], stats.total ? lvl[1] : "데이터 없음"));
 
     $("k-slow").textContent = fmtCount(slow.count);
-    $("k-slow-foot").textContent = "임계값 " + fmtMs(slow.thresholdMs) + " 초과";
-    $("k-avg").textContent = stats.total ? fmtMs(stats.avgDurationMs) : "—";
+    $("k-slow-foot").textContent = "임계값 " + fmtDur(slow.thresholdUs) + " 초과";
+    $("k-avg").textContent = stats.total ? fmtDur(stats.avgDurationUs) : "—";
   }
 
   // ── 표들 ────────────────────────────────────────────────
   function renderSlowTable(slow) {
     var host = $("slow-table"); host.textContent = "";
-    $("slow-cap").textContent = "임계값 " + fmtMs(slow.thresholdMs) + " 초과 · " + slow.count + "건";
+    $("slow-cap").textContent = "임계값 " + fmtDur(slow.thresholdUs) + " 초과 · " + slow.count + "건";
     if (!slow.items.length) { host.appendChild(emptyBox("임계값을 넘은 쿼리가 없습니다.")); return; }
     host.appendChild(table(
       [{ label: "시각", cls: "t" }, { label: "실행시간", cls: "num" }, { label: "SQL" }, { label: "스레드" }],
       slow.items.map(function (q) {
         return [{ text: fmtClock(q.executedAt), cls: "t" },
-                { text: fmtMs(q.durationMs), cls: "num" },
+                { text: fmtDur(q.durationUs), cls: "num" },
                 { text: q.normalizedSql, cls: "sql" },
                 { text: q.threadName, cls: "muted" }];
       })
@@ -690,7 +698,7 @@ td.sql {
         var ok = t.status === "COMMIT";
         return [{ text: fmtClock(t.executedAt), cls: "t" },
                 { node: statusPill(ok ? css("--status-good") : css("--status-critical"), ok ? "커밋" : "롤백") },
-                { text: fmtMs(t.durationMs), cls: "num" },
+                { text: fmtDur(t.durationUs), cls: "num" },
                 { text: t.transactionName, cls: "sql" },
                 { text: t.failureReason || "—", cls: t.failureReason ? null : "muted" }];
       })

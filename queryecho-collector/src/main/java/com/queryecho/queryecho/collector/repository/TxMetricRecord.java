@@ -5,7 +5,7 @@ import java.time.Instant;
 
 public record TxMetricRecord(
         String transactionName,
-        long durationMs,
+        long durationUs,
         TxStatus status,
         Instant executedAt,
         String threadName,

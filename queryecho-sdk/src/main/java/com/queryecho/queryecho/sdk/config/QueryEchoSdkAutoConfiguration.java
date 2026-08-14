@@ -17,8 +17,6 @@ import org.springframework.transaction.annotation.EnableTransactionManagement;
 
 /**
  * QueryEcho SDK를 "의존성만 추가하면 켜지는" 라이브러리로 만들어 주는 자동 구성.
- *
- * ── 왜 이 클래스가 반드시 필요한가 ──
  * SDK의 빈들은 {@code com.queryecho.queryecho.sdk} 패키지에 있다. 그런데 이 SDK를 갖다 쓰는
  * 애플리케이션의 {@code @SpringBootApplication}은 자기 자신의 기준 패키지(예: com.example.app)만
  * 컴포넌트 스캔한다. 즉 jar를 의존성에 추가해도 스캔 범위 밖이라 SDK 빈이 단 하나도 등록되지
@@ -33,18 +31,6 @@ import org.springframework.transaction.annotation.EnableTransactionManagement;
  * 등록 경로가 둘(컴포넌트 스캔 + 자동 구성)이 되면, 스캔 범위에 들어오는 애플리케이션에서는
  * 같은 빈이 두 번 등록된다. 특히 {@link TransactionMetricsAspect}가 두 개 생기면 어드바이저도
  * 둘이 되어 트랜잭션이 중복 계측된다. 등록 경로를 이 클래스 하나로 단일화해서 그 위험을 없앴다.
- *
- * ── 트랜잭션 어드바이저 순서에 대한 주의 ──
- * {@code @EnableTransactionManagement(order = 100)}을 여기서 선언한다.
- * {@link TransactionMetricsAspect}는 트랜잭션이 이미 시작된 "안쪽"에서 실행되어야 커밋/롤백
- * 콜백을 등록할 수 있는데, Spring Boot 기본값은 트랜잭션 어드바이저를 가장 안쪽
- * (Ordered.LOWEST_PRECEDENCE)에 두기 때문에 그대로면 우리 Aspect가 바깥이 되어버린다.
- * LOWEST_PRECEDENCE보다 더 안쪽 값은 존재하지 않으므로, 어드바이저를 바깥으로 끌어내는 것
- * 외에는 방법이 없다.
- *
- * 따라서 타깃 애플리케이션이 자체적으로 {@code @EnableTransactionManagement}를 선언하면서
- * order를 200 이상으로 지정하면 순서가 뒤집혀 트랜잭션 지표가 수집되지 않는다.
- * 이 경우를 조용히 넘기지 않도록 {@link TransactionMetricsAspect}가 최초 1회 경고 로그를 남긴다.
  */
 @AutoConfiguration(beforeName = "org.springframework.boot.transaction.autoconfigure.TransactionAutoConfiguration")
 @ConditionalOnClass(DataSource.class)
@@ -78,17 +64,6 @@ public class QueryEchoSdkAutoConfiguration {
 
     /**
      * DataSource를 자동으로 감싸는 BeanPostProcessor.
-     *
-     * 왜 static 메서드인가?
-     *  - BeanPostProcessor는 컨테이너 초기화 아주 이른 시점에 만들어져야 한다. static이 아니면
-     *    이 빈을 만들기 위해 설정 클래스 자체를 먼저 인스턴스화해야 하고, 그 과정에서 설정
-     *    클래스가 의존하는 빈들까지 너무 일찍 생성되어 "이 빈은 모든 BeanPostProcessor의 처리
-     *    대상이 되지 못했다"는 경고가 뜬다. static으로 두면 설정 클래스 인스턴스 없이 등록된다.
-     *
-     * 왜 MetricEventPublisher를 ObjectProvider로 받는가?
-     *  - 같은 이유로, 여기서 publisher를 직접 주입받으면 컨테이너가 뜨자마자 publisher가
-     *    만들어진다(HTTP 모드면 백그라운드 스레드까지 그때 뜬다). ObjectProvider로 감싸두면
-     *    실제로 DataSource를 감쌀 때 처음 조회되므로 초기화 순서 부담이 줄어든다.
      */
     @Bean
     public static QueryEchoDataSourceBeanPostProcessor queryEchoDataSourceBeanPostProcessor(

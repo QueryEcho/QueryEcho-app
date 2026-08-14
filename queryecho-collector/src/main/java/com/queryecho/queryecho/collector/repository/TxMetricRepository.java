@@ -45,9 +45,9 @@ public class TxMetricRepository {
     public Stats stats() {
         long commit = 0;
         long rollback = 0;
-        long totalDurationMs = 0;
+        long totalDurationUs = 0;
         for (TxMetricRecord record : records) {
-            totalDurationMs += record.durationMs();
+            totalDurationUs += record.durationUs();
             if (record.status() == TxStatus.COMMIT) {
                 commit++;
             } else {
@@ -55,11 +55,11 @@ public class TxMetricRepository {
             }
         }
         long total = commit + rollback;
-        double avgDurationMs = total == 0 ? 0 : (double) totalDurationMs / total;
+        double avgDurationUs = total == 0 ? 0 : (double) totalDurationUs / total;
         double rollbackRate = total == 0 ? 0 : (double) rollback / total;
-        return new Stats(total, commit, rollback, rollbackRate, avgDurationMs);
+        return new Stats(total, commit, rollback, rollbackRate, avgDurationUs);
     }
 
-    public record Stats(long total, long commitCount, long rollbackCount, double rollbackRate, double avgDurationMs) {
+    public record Stats(long total, long commitCount, long rollbackCount, double rollbackRate, double avgDurationUs) {
     }
 }

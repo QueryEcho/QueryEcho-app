@@ -29,12 +29,13 @@ public class TxMetricListener {
     @EventListener
     public void onTxMetric(TxMetricEvent event) {
         if (event.status() == TxStatus.ROLLBACK) {
-            log.warn("[QueryEcho] Transaction rolled back ({}ms): {} - {}",
-                    event.durationMs(), event.transactionName(), event.failureReason());
+            log.warn("[QueryEcho] Transaction rolled back ({}): {} - {}",
+                    DurationFormat.toMillisText(event.durationUs()),
+                    event.transactionName(), event.failureReason());
         }
         repository.save(new TxMetricRecord(
                 event.transactionName(),
-                event.durationMs(),
+                event.durationUs(),
                 event.status(),
                 event.executedAt(),
                 event.threadName(),

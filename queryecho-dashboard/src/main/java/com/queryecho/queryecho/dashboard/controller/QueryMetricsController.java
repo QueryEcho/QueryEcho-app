@@ -41,7 +41,7 @@ public class QueryMetricsController {
     @GetMapping("/slow")
     public SlowQueryListResponse slow(@RequestParam(defaultValue = "100") int limit) {
         List<QueryMetricResponse> items = repository.findSlow(limit).stream().map(QueryMetricResponse::from).toList();
-        return new SlowQueryListResponse(properties.getSlowQueryThresholdMs(), items.size(), items);
+        return new SlowQueryListResponse(properties.slowQueryThresholdUs(), items.size(), items);
     }
 
     @GetMapping("/heatmap")
@@ -66,8 +66,8 @@ public class QueryMetricsController {
                 .sorted(Map.Entry.comparingByKey())
                 .map(e -> {
                     List<QueryMetricRecord> bucketRecords = e.getValue();
-                    long avg = (long) bucketRecords.stream().mapToLong(QueryMetricRecord::durationMs).average().orElse(0);
-                    long max = bucketRecords.stream().mapToLong(QueryMetricRecord::durationMs).max().orElse(0);
+                    long avg = (long) bucketRecords.stream().mapToLong(QueryMetricRecord::durationUs).average().orElse(0);
+                    long max = bucketRecords.stream().mapToLong(QueryMetricRecord::durationUs).max().orElse(0);
                     return new LatencyHeatmapResponse.Bucket(e.getKey(), bucketRecords.size(), avg, max);
                 })
                 .toList();

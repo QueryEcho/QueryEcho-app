@@ -28,15 +28,10 @@ public class QueryEchoSdkProperties {
     private boolean enabled = true;
 
     /**
-     * 수집한 이벤트를 어디로 내보낼지 결정한다.
-     *
+     * 수집한 이벤트를 어디로 내보낼지 결정하는 부분
      * 왜 두 가지 모드를 두는가?
-     *  - LOCAL: SDK와 collector가 같은 JVM 안에 있는 경우(지금의 queryecho-app 데모).
-     *    네트워크를 타지 않으므로 SDK 계측 로직 자체를 검증하기에 가장 단순하다.
-     *  - HTTP: 타깃 애플리케이션이 완전히 별도 프로세스인 실제 사용 형태. SDK만 의존성으로
-     *    추가한 앱이 원격 Collector 서버로 지표를 보낸다.
-     *  기본값을 LOCAL로 둔 이유는, 설정을 아무것도 안 한 상태에서 "네트워크 연결 실패 로그가
-     *  쏟아지는" 상황을 피하기 위해서다. 원격 전송은 명시적으로 켜야 한다.
+     *  - LOCAL: SDK와 collector가 같은 JVM 안에 있는 경우(테스트용으로 일단 구성)
+     *  - HTTP: 타킷 애플리케이션 부분으로 추가한 앱이 원격 Collector 서버로 지표를 보낸다.
      */
     private Transport transport = Transport.LOCAL;
 

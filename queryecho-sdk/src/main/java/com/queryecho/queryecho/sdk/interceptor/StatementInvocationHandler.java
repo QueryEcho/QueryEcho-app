@@ -93,12 +93,20 @@ class StatementInvocationHandler implements InvocationHandler {
         } finally {
             // 예외가 나도(쿼리 실패) finally에서 이벤트를 발행한다.
             // 실패한 쿼리도 "얼마나 걸려서 실패했는지"는 모니터링 관점에서 중요한 데이터이기 때문이다.
-            long durationMs = (System.nanoTime() - start) / 1_000_000;
+            //
+            // 왜 밀리초가 아니라 마이크로초로 기록하는가?
+            //  - nanoTime 차이를 1_000_000으로 정수 나눗셈하면 소수점이 버려진다. 그런데 실제
+            //    쿼리 상당수는 1ms 미만이라(특히 인메모리 DB) 0.3ms도 0.9ms도 전부 0이 되어,
+            //    평균/p95/추이 같은 집계가 통째로 무의미해진다.
+            //  - 1_000으로 나누면 0.3ms가 300으로 남아 분포가 살아난다. long 마이크로초는
+            //    수십만 년치 구간까지 표현 가능하므로 오버플로 걱정도 없다.
+            //  - 표시 단위(ms)로의 변환은 값을 잃지 않는 방향이므로 대시보드 표시 계층에서 한다.
+            long durationUs = (System.nanoTime() - start) / 1_000;
             publisher.publish(new QueryMetricEvent(
                     executedSql,
                     SqlNormalizer.normalize(executedSql),
                     snapshotParams(),
-                    durationMs,
+                    durationUs,
                     Instant.now(),
                     Thread.currentThread().getName()));
         }

@@ -15,6 +15,7 @@ import java.util.List;
  */
 public record LatencyHeatmapResponse(int bucketSeconds, List<Bucket> buckets) {
 
-    public record Bucket(Instant bucketStart, int count, long avgDurationMs, long maxDurationMs) {
+    /** 소요 시간은 수집 단위 그대로 마이크로초로 내려주고, ms 표기 변환은 표시 계층이 담당한다. */
+    public record Bucket(Instant bucketStart, int count, long avgDurationUs, long maxDurationUs) {
     }
 }

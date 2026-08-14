@@ -21,7 +21,8 @@ public record QueryMetricEvent(
         String sql, // 원본 sql
         String normalizedSql, // 리터럴 치환한 sql
         List<Object> params, // 바인딩 값
-        long durationMs, // 쿼리 실행 시간
+        long durationUs, // 쿼리 실행 시간(마이크로초). ms로 저장하면 1ms 미만 쿼리가 전부 0이 되어
+                         // 평균/백분위 집계가 무의미해지므로 원시 값은 마이크로초로 유지한다.
         Instant executedAt, // 실행 시각
         String threadName // 실행 스레드 이름
 ) {

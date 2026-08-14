@@ -17,7 +17,7 @@ public record QueryMetricRecord(
         String sql,
         String normalizedSql,
         List<Object> params,
-        long durationMs,
+        long durationUs,
         Instant executedAt,
         String threadName,
         boolean slow,

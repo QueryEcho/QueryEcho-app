@@ -93,13 +93,14 @@ public class TransactionMetricsAspect {
             @Override
             public void afterCompletion(int status) {
                 ALREADY_TRACKING.remove();
-                long durationMs = (System.nanoTime() - start) / 1_000_000;
+                // 마이크로초로 기록하는 이유는 QueryMetricEvent.durationUs 주석 참고.
+                long durationUs = (System.nanoTime() - start) / 1_000;
                 TxStatus txStatus = status == TransactionSynchronization.STATUS_COMMITTED
                         ? TxStatus.COMMIT
                         : TxStatus.ROLLBACK;
                 publisher.publish(new TxMetricEvent(
                         transactionName,
-                        durationMs,
+                        durationUs,
                         txStatus,
                         Instant.now(),
                         Thread.currentThread().getName(),

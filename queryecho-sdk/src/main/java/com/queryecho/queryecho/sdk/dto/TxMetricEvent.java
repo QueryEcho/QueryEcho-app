@@ -13,7 +13,7 @@ import java.time.Instant;
  */
 public record TxMetricEvent(
         String transactionName, // 트랜잭션 네임(어느 메서드)
-        long durationMs, // 트랜잭션 실행 시간
+        long durationUs, // 트랜잭션 실행 시간(마이크로초). 단위 근거는 QueryMetricEvent.durationUs 참고.
         TxStatus status, // 상태( COMMIT/ROLLBACK)
         Instant executedAt, // 실행시간
         String threadName, // 실행 스레드

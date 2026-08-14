@@ -6,7 +6,7 @@ import java.time.Instant;
 
 public record TxMetricResponse(
         String transactionName,
-        long durationMs,
+        long durationUs,
         TxStatus status,
         Instant executedAt,
         String threadName,
@@ -15,7 +15,7 @@ public record TxMetricResponse(
     public static TxMetricResponse from(TxMetricRecord record) {
         return new TxMetricResponse(
                 record.transactionName(),
-                record.durationMs(),
+                record.durationUs(),
                 record.status(),
                 record.executedAt(),
                 record.threadName(),

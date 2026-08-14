@@ -43,12 +43,15 @@ public class QueryMetricListener {
     @Async
     @EventListener
     public void onQueryMetric(QueryMetricEvent event) {
-        boolean slow = event.durationMs() >= properties.getSlowQueryThresholdMs();
+        // 이벤트는 us, 설정은 ms 단위이므로 임계값을 us로 환산해 같은 단위끼리 비교한다.
+        boolean slow = event.durationUs() >= properties.slowQueryThresholdUs();
         int repeatCount = repeatedQueryDetectionService.recordAndCount(event);
 
         if (slow) {
-            log.warn("[QueryEcho] Slow query ({}ms >= {}ms threshold): {}",
-                    event.durationMs(), properties.getSlowQueryThresholdMs(), event.normalizedSql());
+            log.warn("[QueryEcho] Slow query ({} >= {} threshold): {}",
+                    DurationFormat.toMillisText(event.durationUs()),
+                    DurationFormat.toMillisText(properties.slowQueryThresholdUs()),
+                    event.normalizedSql());
         }
         if (repeatCount >= properties.getNPlusOne().getThreshold()) {
             log.warn("[QueryEcho] Possible N+1 pattern: '{}' executed {} times within {}ms on thread [{}]",
@@ -59,7 +62,7 @@ public class QueryMetricListener {
                 event.sql(),
                 event.normalizedSql(),
                 event.params(),
-                event.durationMs(),
+                event.durationUs(),
                 event.executedAt(),
                 event.threadName(),
                 slow,

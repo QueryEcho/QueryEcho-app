@@ -251,7 +251,7 @@ public class HttpMetricEventPublisher implements MetricEventPublisher, AutoClose
                 event.sql(),
                 event.normalizedSql(),
                 safeParams,
-                event.durationMs(),
+                event.durationUs(),
                 event.executedAt(),
                 event.threadName());
     }
