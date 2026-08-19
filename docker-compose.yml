@@ -1,0 +1,22 @@
+services:
+  postgres:
+    image: postgres:17.4
+    container_name: queryecho-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: queryecho
+      POSTGRES_USER: queryecho
+      POSTGRES_PASSWORD: queryecho
+    ports:
+      - "5433:5432"
+    volumes:
+      - queryecho-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U queryecho -d queryecho"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+volumes:
+  queryecho-postgres-data:

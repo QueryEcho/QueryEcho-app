@@ -10,4 +10,6 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     implementation 'org.flywaydb:flyway-core'
+    // Flyway 10+에서는 PostgreSQL 지원이 별도 모듈로 분리되어 있다.
+    runtimeOnly 'org.flywaydb:flyway-database-postgresql'
 }
