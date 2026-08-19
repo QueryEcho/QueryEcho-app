@@ -7,6 +7,7 @@ import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.sql.Statement;
+import java.sql.SQLException;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -14,6 +15,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.UUID;
 
 /**
  * Statement / PreparedStatement / CallableStatement 한 개를 감싸는 JDK 동적 프록시의
@@ -45,6 +47,7 @@ class StatementInvocationHandler implements InvocationHandler {
     // 여기 미리 저장해둔다. 반면 plain Statement는 execute(sql) 호출 시점에야 SQL을 알 수 있으므로 null로 둔다.
     private final String preparedSql;
     private final MetricEventPublisher publisher;
+    private final QueryMetricSource source;
 
     // 왜 ConcurrentHashMap인가?
     //  - Statement 자체는 스레드 세이프하지 않지만, 커넥션 풀/비동기 프레임워크 조합에서
@@ -52,10 +55,12 @@ class StatementInvocationHandler implements InvocationHandler {
     //    별도 동기화 로직을 직접 짜는 대신 검증된 동시성 컬렉션에 위임해 버그 여지를 줄였다.
     private final Map<Integer, Object> boundParams = new ConcurrentHashMap<>();
 
-    StatementInvocationHandler(Statement target, String preparedSql, MetricEventPublisher publisher) {
+    StatementInvocationHandler(Statement target, String preparedSql, MetricEventPublisher publisher,
+                               QueryMetricSource source) {
         this.target = target;
         this.preparedSql = preparedSql;
         this.publisher = publisher;
+        this.source = source;
     }
 
     @Override
@@ -88,8 +93,17 @@ class StatementInvocationHandler implements InvocationHandler {
         //  - System.currentTimeMillis()는 벽시계 시각이라 NTP 보정 등으로 역행할 수 있다.
         //    구간 시간(duration) 측정에는 단조 증가가 보장되는 nanoTime()을 쓰는 것이 표준 권장 방식이다.
         long start = System.nanoTime();
+        boolean succeeded = false;
+        String sqlState = null;
         try {
-            return invokeTarget(method, args);
+            Object result = invokeTarget(method, args);
+            succeeded = true;
+            return result;
+        } catch (Throwable ex) {
+            if (ex instanceof SQLException sqlException) {
+                sqlState = sqlException.getSQLState();
+            }
+            throw ex;
         } finally {
             // 예외가 나도(쿼리 실패) finally에서 이벤트를 발행한다.
             // 실패한 쿼리도 "얼마나 걸려서 실패했는지"는 모니터링 관점에서 중요한 데이터이기 때문이다.
@@ -102,13 +116,23 @@ class StatementInvocationHandler implements InvocationHandler {
             //    수십만 년치 구간까지 표현 가능하므로 오버플로 걱정도 없다.
             //  - 표시 단위(ms)로의 변환은 값을 잃지 않는 방향이므로 대시보드 표시 계층에서 한다.
             long durationUs = (System.nanoTime() - start) / 1_000;
+            List<Object> params = snapshotParams();
             publisher.publish(new QueryMetricEvent(
+                    UUID.randomUUID(),
+                    source.appName(),
+                    source.environment(),
+                    source.instanceId(),
+                    source.datasourceName(),
+                    source.dbType(),
                     executedSql,
                     SqlNormalizer.normalize(executedSql),
-                    snapshotParams(),
+                    params,
+                    params.size(),
                     durationUs,
                     Instant.now(),
-                    Thread.currentThread().getName()));
+                    Thread.currentThread().getName(),
+                    succeeded,
+                    sqlState));
         }
     }
 

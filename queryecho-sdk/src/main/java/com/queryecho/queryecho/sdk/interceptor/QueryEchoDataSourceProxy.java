@@ -25,10 +25,12 @@ public class QueryEchoDataSourceProxy implements DataSource {
 
     private final DataSource delegate;
     private final MetricEventPublisher publisher;
+    private final QueryMetricSource source;
 
-    public QueryEchoDataSourceProxy(DataSource delegate, MetricEventPublisher publisher) {
+    public QueryEchoDataSourceProxy(DataSource delegate, MetricEventPublisher publisher, QueryMetricSource source) {
         this.delegate = delegate;
         this.publisher = publisher;
+        this.source = source;
     }
 
     @Override
@@ -45,7 +47,7 @@ public class QueryEchoDataSourceProxy implements DataSource {
         return (Connection) Proxy.newProxyInstance(
                 Connection.class.getClassLoader(),
                 new Class<?>[]{Connection.class},
-                new ConnectionInvocationHandler(connection, publisher));
+                new ConnectionInvocationHandler(connection, publisher, source));
     }
 
     @Override

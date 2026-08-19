@@ -3,6 +3,7 @@ package com.queryecho.queryecho.dashboard.dto;
 import com.queryecho.queryecho.collector.repository.QueryMetricRecord;
 import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * API 응답 전용 DTO. collector.repository.QueryMetricRecord를 그대로 노출하지 않고
@@ -12,24 +13,40 @@ import java.util.List;
  *    소비자가 보는 JSON 스키마는 우리가 명시적으로 바꾸기 전까지 안정적으로 유지된다.
  */
 public record QueryMetricResponse(
+        UUID eventId,
+        String environment,
+        String appName,
+        String instanceId,
+        String datasourceName,
         String sql,
         String normalizedSql,
         List<Object> params,
+        int paramCount,
         long durationUs,
         Instant executedAt,
         String threadName,
         boolean slow,
-        int recentRepeatCount
+        int recentRepeatCount,
+        boolean succeeded,
+        String sqlState
 ) {
     public static QueryMetricResponse from(QueryMetricRecord record) {
         return new QueryMetricResponse(
+                record.eventId(),
+                record.environment(),
+                record.appName(),
+                record.instanceId(),
+                record.datasourceName(),
                 record.sql(),
                 record.normalizedSql(),
                 record.params(),
+                record.paramCount(),
                 record.durationUs(),
                 record.executedAt(),
                 record.threadName(),
                 record.slow(),
-                record.recentRepeatCount());
+                record.recentRepeatCount(),
+                record.succeeded(),
+                record.sqlState());
     }
 }

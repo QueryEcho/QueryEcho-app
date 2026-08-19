@@ -28,10 +28,12 @@ class ConnectionInvocationHandler implements InvocationHandler {
 
     private final Connection target;
     private final MetricEventPublisher publisher;
+    private final QueryMetricSource source;
 
-    ConnectionInvocationHandler(Connection target, MetricEventPublisher publisher) {
+    ConnectionInvocationHandler(Connection target, MetricEventPublisher publisher, QueryMetricSource source) {
         this.target = target;
         this.publisher = publisher;
+        this.source = source;
     }
 
     @Override
@@ -64,7 +66,7 @@ class ConnectionInvocationHandler implements InvocationHandler {
         return Proxy.newProxyInstance(
                 iface.getClassLoader(),
                 new Class<?>[]{iface},
-                new StatementInvocationHandler(statement, sql, publisher));
+                new StatementInvocationHandler(statement, sql, publisher, source));
     }
 
     private Object invokeTarget(Method method, Object[] args) throws Throwable {

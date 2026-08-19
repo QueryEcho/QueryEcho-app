@@ -1,5 +1,7 @@
 package com.queryecho.queryecho.sdk.config;
 
+import java.util.ArrayList;
+import java.util.List;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
@@ -26,6 +28,24 @@ public class QueryEchoSdkProperties {
      * "계측 오버헤드 없이 순수 성능을 재고 싶다"는 요구를 코드 변경 없이 만족시키기 위한 옵션.
      */
     private boolean enabled = true;
+
+    /** Collector에서 지표의 출처를 구분하기 위한 논리적 애플리케이션 이름. */
+    private String appName = "unknown-app";
+
+    /** local/dev/staging/prod 같은 실행 환경. */
+    private String environment = "default";
+
+    /** 서버, 컨테이너 또는 Pod를 구분하는 안정적인 인스턴스 식별자. */
+    private String instanceId = defaultInstanceId();
+
+    /** mysql/postgresql/h2처럼 fingerprint를 DB 종류별로 분리하기 위한 값. */
+    private String dbType = "unknown";
+
+    /** Collector 저장용 DataSource처럼 관찰하면 안 되는 빈 이름. */
+    private List<String> excludedDataSourceBeans = new ArrayList<>();
+
+    /** 바인딩 파라미터 수집은 기본적으로 꺼져 있고, fingerprint+index 허용 목록만 지원한다. */
+    private final Params params = new Params();
 
     /**
      * 수집한 이벤트를 어디로 내보낼지 결정하는 부분
@@ -78,5 +98,28 @@ public class QueryEchoSdkProperties {
          * Collector가 응답하지 않을 때 전송 스레드가 무한정 붙잡히지 않도록 반드시 필요하다.
          */
         private long requestTimeoutMs = 3000;
+    }
+
+    @Data
+    public static class Params {
+        private boolean enabled = false;
+        private int maxTextLength = 100;
+        private List<ParamRule> rules = new ArrayList<>();
+    }
+
+    @Data
+    public static class ParamRule {
+        /** SHA-256(dbType + ':' + normalizedSql). */
+        private String fingerprint;
+        /** JDBC의 1부터 시작하는 파라미터 인덱스. */
+        private List<Integer> allowedIndexes = new ArrayList<>();
+    }
+
+    private static String defaultInstanceId() {
+        String hostname = System.getenv("HOSTNAME");
+        if (hostname == null || hostname.isBlank()) {
+            hostname = System.getenv("COMPUTERNAME");
+        }
+        return hostname == null || hostname.isBlank() ? "unknown-instance" : hostname;
     }
 }

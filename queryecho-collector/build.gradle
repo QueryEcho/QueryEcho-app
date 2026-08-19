@@ -8,4 +8,6 @@ dependencies {
     // 원격 SDK가 보내는 지표를 받는 수신 API(MetricIngestController)를 제공하므로 web이 필요하다.
     // collector가 "서버"가 되는 순간부터 이건 선택이 아니라 필수 의존성이다.
     implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'org.flywaydb:flyway-core'
 }

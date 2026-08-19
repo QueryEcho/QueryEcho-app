@@ -4,6 +4,7 @@ import com.queryecho.queryecho.sdk.interceptor.QueryEchoDataSourceBeanPostProces
 import com.queryecho.queryecho.sdk.publisher.HttpMetricEventPublisher;
 import com.queryecho.queryecho.sdk.publisher.LocalMetricEventPublisher;
 import com.queryecho.queryecho.sdk.publisher.MetricEventPublisher;
+import com.queryecho.queryecho.sdk.publisher.SanitizingMetricEventPublisher;
 import com.queryecho.queryecho.sdk.transaction.TransactionMetricsAspect;
 import javax.sql.DataSource;
 import org.springframework.beans.factory.ObjectProvider;
@@ -56,10 +57,10 @@ public class QueryEchoSdkAutoConfiguration {
     @Bean
     public MetricEventPublisher metricEventPublisher(QueryEchoSdkProperties properties,
                                                       ApplicationEventPublisher applicationEventPublisher) {
-        if (properties.getTransport() == QueryEchoSdkProperties.Transport.HTTP) {
-            return new HttpMetricEventPublisher(properties);
-        }
-        return new LocalMetricEventPublisher(applicationEventPublisher);
+        MetricEventPublisher transport = properties.getTransport() == QueryEchoSdkProperties.Transport.HTTP
+                ? new HttpMetricEventPublisher(properties)
+                : new LocalMetricEventPublisher(applicationEventPublisher);
+        return new SanitizingMetricEventPublisher(transport, properties);
     }
 
     /**
@@ -67,8 +68,9 @@ public class QueryEchoSdkAutoConfiguration {
      */
     @Bean
     public static QueryEchoDataSourceBeanPostProcessor queryEchoDataSourceBeanPostProcessor(
-            ObjectProvider<MetricEventPublisher> publisherProvider) {
-        return new QueryEchoDataSourceBeanPostProcessor(publisherProvider);
+            ObjectProvider<MetricEventPublisher> publisherProvider,
+            QueryEchoSdkProperties properties) {
+        return new QueryEchoDataSourceBeanPostProcessor(publisherProvider, properties);
     }
 
     @Bean

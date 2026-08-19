@@ -67,9 +67,6 @@ public class HttpMetricEventPublisher implements MetricEventPublisher, AutoClose
      */
     private static final int MAX_BATCHES_PER_FLUSH = 10;
 
-    /** 바인딩 파라미터 하나를 문자열로 바꿀 때의 최대 길이. */
-    private static final int MAX_PARAM_TEXT_LENGTH = 200;
-
     private final BlockingQueue<Object> queue;
     private final ScheduledExecutorService scheduler;
     private final HttpClient httpClient;
@@ -178,7 +175,9 @@ public class HttpMetricEventPublisher implements MetricEventPublisher, AutoClose
 
         for (Object event : batch) {
             if (event instanceof QueryMetricEvent queryEvent) {
-                queries.add(toWireSafe(queryEvent));
+                // 파라미터 허용 목록/길이 제한은 전송 구현체 앞의
+                // SanitizingMetricEventPublisher가 이미 적용했다.
+                queries.add(queryEvent);
             } else if (event instanceof TxMetricEvent txEvent) {
                 transactions.add(txEvent);
             }
@@ -226,50 +225,6 @@ public class HttpMetricEventPublisher implements MetricEventPublisher, AutoClose
             Thread.currentThread().interrupt();
             droppedEvents.addAndGet(payload.size());
         }
-    }
-
-    /**
-     * 바인딩 파라미터를 "네트워크로 보내도 안전한" 형태로 바꾼다.
-     *
-     * 왜 원본 객체를 그대로 직렬화하지 않는가?
-     *  - params에는 JDBC 드라이버가 받은 임의의 객체가 들어온다(byte[], Blob 핸들, 드라이버
-     *    전용 타입 등). 이런 객체는 Jackson이 직렬화하다 실패하거나(그러면 그 배치 전체가
-     *    통째로 유실된다), BLOB처럼 수 MB짜리 payload를 만들어낼 수 있다.
-     *  - 지표를 보는 사람에게 필요한 건 "어떤 값이 바인딩됐는지 알아볼 수 있는 정도"이지
-     *    바이트 단위로 정확한 원본이 아니다. 그래서 문자열로 바꾸고 길이를 잘라
-     *    "직렬화가 절대 실패하지 않는" 상태를 만든다.
-     */
-    private QueryMetricEvent toWireSafe(QueryMetricEvent event) {
-        if (event.params().isEmpty()) {
-            return event;
-        }
-        List<Object> safeParams = new ArrayList<>(event.params().size());
-        for (Object param : event.params()) {
-            safeParams.add(toSafeText(param));
-        }
-        return new QueryMetricEvent(
-                event.sql(),
-                event.normalizedSql(),
-                safeParams,
-                event.durationUs(),
-                event.executedAt(),
-                event.threadName());
-    }
-
-    private Object toSafeText(Object param) {
-        if (param == null) {
-            return null;
-        }
-        String text;
-        try {
-            text = String.valueOf(param);
-        } catch (Exception ex) {
-            // 사용자 정의 타입의 toString()이 예외를 던지는 경우까지 방어한다.
-            text = "<" + param.getClass().getSimpleName() + ">";
-        }
-        return text.length() > MAX_PARAM_TEXT_LENGTH
-                ? text.substring(0, MAX_PARAM_TEXT_LENGTH) + "...(truncated)"
-                : text;
     }
 
     /**

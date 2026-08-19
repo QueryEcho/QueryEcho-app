@@ -30,6 +30,8 @@ public class QueryEchoCollectorProperties {
     }
 
     private final NPlusOne nPlusOne = new NPlusOne();
+    private final Rollup rollup = new Rollup();
+    private final Retention retention = new Retention();
 
     @Data
     public static class NPlusOne {
@@ -42,5 +44,17 @@ public class QueryEchoCollectorProperties {
 
         /** 윈도우 안에서 같은 모양의 쿼리가 이 횟수 이상 반복되면 N+1 의심으로 표시한다. */
         private int threshold = 5;
+    }
+
+    @Data
+    public static class Rollup {
+        /** 늦게 도착한 이벤트를 보정하기 위해 매번 다시 계산할 최근 구간. */
+        private long lookbackMinutes = 10;
+        private long intervalMs = 60_000;
+    }
+
+    @Data
+    public static class Retention {
+        private int executionDays = 7;
     }
 }

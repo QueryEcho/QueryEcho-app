@@ -1,0 +1,103 @@
+package com.queryecho.queryecho.sdk.publisher;
+
+import com.queryecho.queryecho.sdk.config.QueryEchoSdkProperties;
+import com.queryecho.queryecho.sdk.dto.QueryMetricEvent;
+import com.queryecho.queryecho.sdk.util.QueryFingerprint;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+/** 민감한 바인딩 값이 SDK 프로세스 밖으로 나가기 전에 허용 목록만 남긴다. */
+public final class SanitizingMetricEventPublisher implements MetricEventPublisher, AutoCloseable {
+
+    private final MetricEventPublisher delegate;
+    private final QueryEchoSdkProperties properties;
+
+    public SanitizingMetricEventPublisher(MetricEventPublisher delegate, QueryEchoSdkProperties properties) {
+        this.delegate = delegate;
+        this.properties = properties;
+    }
+
+    @Override
+    public void publish(Object event) {
+        if (event instanceof QueryMetricEvent queryEvent) {
+            delegate.publish(sanitize(queryEvent));
+            return;
+        }
+        delegate.publish(event);
+    }
+
+    private QueryMetricEvent sanitize(QueryMetricEvent event) {
+        List<Object> captured = captureAllowed(event);
+        return new QueryMetricEvent(
+                event.eventId(),
+                event.appName(),
+                event.environment(),
+                event.instanceId(),
+                event.datasourceName(),
+                event.dbType(),
+                // 리터럴이 SQL 문자열에 직접 박힌 경우도 있으므로 Collector에는 정규화 SQL만 보낸다.
+                event.normalizedSql(),
+                event.normalizedSql(),
+                captured,
+                event.paramCount(),
+                event.durationUs(),
+                event.executedAt(),
+                event.threadName(),
+                event.succeeded(),
+                event.sqlState());
+    }
+
+    private List<Object> captureAllowed(QueryMetricEvent event) {
+        QueryEchoSdkProperties.Params params = properties.getParams();
+        if (!params.isEnabled() || event.params().isEmpty()) {
+            return List.of();
+        }
+
+        String fingerprint = QueryFingerprint.sha256(event.dbType(), event.normalizedSql());
+        Set<Integer> allowed = params.getRules().stream()
+                .filter(rule -> fingerprint.equalsIgnoreCase(rule.getFingerprint()))
+                .flatMap(rule -> rule.getAllowedIndexes().stream())
+                .filter(index -> index != null && index > 0)
+                .collect(Collectors.toSet());
+
+        if (allowed.isEmpty()) {
+            return List.of();
+        }
+
+        List<Object> result = new ArrayList<>();
+        for (int zeroBased = 0; zeroBased < event.params().size(); zeroBased++) {
+            int jdbcIndex = zeroBased + 1;
+            if (!allowed.contains(jdbcIndex)) {
+                continue;
+            }
+            Object value = event.params().get(zeroBased);
+            Map<String, Object> captured = new LinkedHashMap<>();
+            captured.put("index", jdbcIndex);
+            captured.put("type", value == null ? "NULL" : value.getClass().getSimpleName());
+            captured.put("mode", "PLAIN");
+            captured.put("value", safeValue(value, params.getMaxTextLength()));
+            result.add(captured);
+        }
+        return List.copyOf(result);
+    }
+
+    private Object safeValue(Object value, int maxLength) {
+        if (value == null || value instanceof Number || value instanceof Boolean) {
+            return value;
+        }
+        String text = String.valueOf(value);
+        int limit = Math.max(0, maxLength);
+        return text.length() <= limit ? text : text.substring(0, limit);
+    }
+
+    @Override
+    public void close() throws Exception {
+        if (delegate instanceof AutoCloseable closeable) {
+            closeable.close();
+        }
+    }
+}

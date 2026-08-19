@@ -2,6 +2,7 @@ package com.queryecho.queryecho.collector.repository;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * 저장소에 실제로 쌓이는 "분석이 끝난" 쿼리 지표.
@@ -14,13 +15,21 @@ import java.util.List;
  *    스키마는 건드릴 필요가 없다.
  */
 public record QueryMetricRecord(
+        UUID eventId,
+        String environment,
+        String appName,
+        String instanceId,
+        String datasourceName,
         String sql,
         String normalizedSql,
         List<Object> params,
+        int paramCount,
         long durationUs,
         Instant executedAt,
         String threadName,
         boolean slow,
-        int recentRepeatCount
+        int recentRepeatCount,
+        boolean succeeded,
+        String sqlState
 ) {
 }

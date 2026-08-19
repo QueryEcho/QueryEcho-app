@@ -30,7 +30,8 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 @SpringBootApplication(scanBasePackages = {
         "com.queryecho.queryecho.collector",
         "com.queryecho.queryecho.dashboard",
-        "com.queryecho.queryecho.demo"
+        "com.queryecho.queryecho.demo",
+        "com.queryecho.queryecho.config"
 })
 @EnableConfigurationProperties(QueryEchoCollectorProperties.class)
 public class QueryEchoApplication {

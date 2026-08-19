@@ -1,6 +1,7 @@
 package com.queryecho.queryecho.demo;
 
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,7 +20,7 @@ public class DemoService {
 
     private final JdbcTemplate jdbcTemplate;
 
-    public DemoService(JdbcTemplate jdbcTemplate) {
+    public DemoService(@Qualifier("demoJdbcTemplate") JdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
     }
 

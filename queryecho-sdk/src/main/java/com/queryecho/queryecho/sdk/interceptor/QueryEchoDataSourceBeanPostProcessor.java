@@ -1,6 +1,7 @@
 package com.queryecho.queryecho.sdk.interceptor;
 
 import com.queryecho.queryecho.sdk.publisher.MetricEventPublisher;
+import com.queryecho.queryecho.sdk.config.QueryEchoSdkProperties;
 import javax.sql.DataSource;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.config.BeanPostProcessor;
@@ -33,16 +34,26 @@ public class QueryEchoDataSourceBeanPostProcessor implements BeanPostProcessor, 
     // (BeanPostProcessor는 아주 이른 시점에 만들어지므로, 여기서 publisher를 즉시
     //  주입받으면 publisher와 그 의존성들이 너무 일찍 생성된다).
     private final ObjectProvider<MetricEventPublisher> publisherProvider;
+    private final QueryEchoSdkProperties properties;
 
-    public QueryEchoDataSourceBeanPostProcessor(ObjectProvider<MetricEventPublisher> publisherProvider) {
+    public QueryEchoDataSourceBeanPostProcessor(ObjectProvider<MetricEventPublisher> publisherProvider,
+                                                QueryEchoSdkProperties properties) {
         this.publisherProvider = publisherProvider;
+        this.properties = properties;
     }
 
     @Override
     public Object postProcessAfterInitialization(Object bean, String beanName) {
         // 이미 감싼 인스턴스를 다시 감싸는 것을 방지 (멀티 DataSource 빈 재등록 등 방어)
-        if (bean instanceof DataSource dataSource && !(bean instanceof QueryEchoDataSourceProxy)) {
-            return new QueryEchoDataSourceProxy(dataSource, publisherProvider.getObject());
+        if (bean instanceof DataSource dataSource && !(bean instanceof QueryEchoDataSourceProxy)
+                && !properties.getExcludedDataSourceBeans().contains(beanName)) {
+            QueryMetricSource source = new QueryMetricSource(
+                    properties.getAppName(),
+                    properties.getEnvironment(),
+                    properties.getInstanceId(),
+                    beanName,
+                    properties.getDbType());
+            return new QueryEchoDataSourceProxy(dataSource, publisherProvider.getObject(), source);
         }
         return bean;
     }

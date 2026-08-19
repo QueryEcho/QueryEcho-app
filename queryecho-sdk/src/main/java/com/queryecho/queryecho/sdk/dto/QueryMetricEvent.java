@@ -2,6 +2,7 @@ package com.queryecho.queryecho.sdk.dto;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * JDBC 인터셉터가 Statement/PreparedStatement 실행 1건마다 만들어내는 원시 신호.
@@ -18,12 +19,21 @@ import java.util.List;
  *    책임을 타입 레벨에서도 분리해 둔 이유는 QueryMetricRecord 쪽 근거 주석에 자세히 적어두었다.
  */
 public record QueryMetricEvent(
+        UUID eventId, // 재전송되어도 Collector에서 중복 저장되지 않게 하는 실행 고유 ID
+        String appName,
+        String environment,
+        String instanceId,
+        String datasourceName,
+        String dbType,
         String sql, // 원본 sql
         String normalizedSql, // 리터럴 치환한 sql
-        List<Object> params, // 바인딩 값
+        List<Object> params, // 허용 정책을 통과한 값만 포함. 기본값은 빈 목록
+        int paramCount, // 값을 수집하지 않아도 전체 바인딩 파라미터 개수는 남긴다.
         long durationUs, // 쿼리 실행 시간(마이크로초). ms로 저장하면 1ms 미만 쿼리가 전부 0이 되어
                          // 평균/백분위 집계가 무의미해지므로 원시 값은 마이크로초로 유지한다.
         Instant executedAt, // 실행 시각
-        String threadName // 실행 스레드 이름
+        String threadName, // 실행 스레드 이름
+        boolean succeeded,
+        String sqlState
 ) {
 }
