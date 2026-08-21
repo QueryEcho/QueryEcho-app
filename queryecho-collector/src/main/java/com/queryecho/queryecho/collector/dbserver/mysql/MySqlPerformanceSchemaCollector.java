@@ -1,6 +1,7 @@
 package com.queryecho.queryecho.collector.dbserver.mysql;
 
 import com.queryecho.queryecho.collector.dbserver.DbServerQueryPersistenceService;
+import com.queryecho.queryecho.collector.dbserver.DbServerQueryCollector;
 import com.queryecho.queryecho.collector.dbserver.DbServerQuerySample;
 import com.queryecho.queryecho.sdk.util.QueryFingerprint;
 import com.queryecho.queryecho.sdk.util.SqlNormalizer;
@@ -27,7 +28,7 @@ import org.springframework.stereotype.Component;
  */
 @Component
 @ConditionalOnProperty(prefix = "queryecho.db-collector.mysql", name = "enabled", havingValue = "true")
-public class MySqlPerformanceSchemaCollector {
+public class MySqlPerformanceSchemaCollector implements DbServerQueryCollector {
 
     private static final Logger log = LoggerFactory.getLogger(MySqlPerformanceSchemaCollector.class);
     private static final long PICOSECONDS_PER_MICROSECOND = 1_000_000L;
@@ -84,6 +85,7 @@ public class MySqlPerformanceSchemaCollector {
     @Scheduled(
             fixedDelayString = "${queryecho.db-collector.mysql.poll-interval-ms:1000}",
             initialDelayString = "${queryecho.db-collector.mysql.initial-delay-ms:3000}")
+    @Override
     public void collect() {
         try {
             List<DbServerQuerySample> samples = readRecentStatements();
@@ -102,6 +104,11 @@ public class MySqlPerformanceSchemaCollector {
                 log.error("[QueryEcho] MySQL DB collector failed", ex);
             }
         }
+    }
+
+    @Override
+    public String dbType() {
+        return "mysql";
     }
 
     List<DbServerQuerySample> readRecentStatements() throws SQLException {

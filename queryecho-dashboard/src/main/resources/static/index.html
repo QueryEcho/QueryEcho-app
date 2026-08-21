@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ko" data-theme="">
+<html lang="ko" data-theme="dark">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -189,51 +189,283 @@ td.sql {
 .tv { display: none; }
 .tv.on { display: block; }
 .hidden { display: none !important; }
+
+/* ── Grafana 계열 관측성 셸 ─────────────────────────────── */
+.viz-root {
+  --page: #111217;
+  --surface-1: #181b1f;
+  --surface-2: #202327;
+  --surface-3: #292c31;
+  --text-primary: #f4f5f5;
+  --text-secondary: #c7c9cc;
+  --text-muted: #8e939a;
+  --grid: #2b2f34;
+  --axis: #41464d;
+  --border: #30343a;
+  --series-1: #5794f2;
+  --series-2: #ff9830;
+  --source-app: #73bf69;
+  --source-db: #b877d9;
+  --status-good: #73bf69;
+  --status-warning: #ff9830;
+  --status-critical: #f2495c;
+  --ghost: rgba(255,255,255,.055);
+}
+html, html[data-theme="dark"] { background: #111217; }
+body { background: #111217; overflow-x: hidden; }
+.viz-root {
+  max-width: none;
+  margin: 0 0 0 58px;
+  padding: 0 18px 44px;
+}
+.side-rail {
+  position: fixed; inset: 0 auto 0 0; z-index: 30;
+  width: 58px; background: #0b0c0e; border-right: 1px solid #282b30;
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  padding: 10px 7px;
+}
+.rail-brand {
+  width: 36px; height: 36px; display: grid; place-items: center;
+  border-radius: 9px; color: #111217; background: #ff9830;
+  font-size: 17px; font-weight: 850; margin-bottom: 8px;
+}
+.rail-nav { display: flex; flex-direction: column; gap: 5px; width: 100%; }
+.nav-item {
+  width: 44px; min-height: 42px; border: 0; border-radius: 8px;
+  color: #92979f; background: transparent; cursor: pointer;
+  display: grid; place-items: center; gap: 1px; padding: 5px 2px;
+  font: inherit;
+}
+.nav-item .ico { font-size: 15px; line-height: 1; font-weight: 750; }
+.nav-item .nav-label { font-size: 8px; line-height: 1.1; letter-spacing: .01em; }
+.nav-item:hover { color: #f4f5f5; background: #202327; }
+.nav-item.active { color: #fff; background: #2b2f34; box-shadow: inset 2px 0 #ff9830; }
+.topbar {
+  min-height: 58px; margin: 0 -18px; padding: 0 18px;
+  border-bottom: 1px solid var(--border); background: #111217;
+  display: flex; align-items: center; gap: 12px;
+}
+.head { flex: 1; align-items: center; margin: 0; }
+.head h1 { font-size: 17px; letter-spacing: -.015em; }
+.head .sub { font-size: 12px; color: var(--text-muted); }
+.breadcrumb { color: var(--text-muted); font-size: 11px; }
+.page-heading { padding: 18px 0 12px; display: flex; align-items: end; gap: 16px; }
+.page-heading h2 { margin: 0; font-size: 22px; font-weight: 600; letter-spacing: -.025em; }
+.page-heading p { margin: 4px 0 0; color: var(--text-muted); font-size: 12px; }
+.page-heading .spacer { flex: 1; }
+.filters {
+  margin: 0 0 14px; padding: 9px 10px;
+  background: #181b1f; border: 1px solid var(--border); border-radius: 4px;
+  gap: 8px;
+}
+.filter-group { display: inline-flex; align-items: center; gap: 7px; }
+.filter-sep { width: 1px; height: 24px; background: var(--border); margin: 0 2px; }
+select, .btn {
+  border-radius: 3px; background: #111217; border-color: #3b4047;
+  padding: 5px 9px;
+}
+.btn.primary { background: #3274d9; border-color: #3274d9; color: #fff; }
+.btn.primary:hover { background: #3d7fe6; }
+.live { margin-left: auto; }
+.source-filter {
+  border: 1px solid #3b4047; border-right: 0; background: #111217;
+  color: var(--text-secondary); padding: 5px 9px; cursor: pointer; font: inherit; font-size: 12px;
+}
+.source-filter:first-child { border-radius: 3px 0 0 3px; }
+.source-filter:last-child { border-right: 1px solid #3b4047; border-radius: 0 3px 3px 0; }
+.source-filter.active { color: #fff; background: #3274d9; border-color: #3274d9; }
+.source-overview { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+.source-card {
+  position: relative; overflow: hidden; min-height: 116px;
+  background: #181b1f; border: 1px solid var(--border); border-radius: 4px; padding: 15px 16px;
+}
+.source-card::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 3px; background: var(--source-color); }
+.source-card.app { --source-color: var(--source-app); }
+.source-card.db { --source-color: var(--source-db); }
+.source-card-head { display: flex; align-items: center; gap: 8px; }
+.source-card-title { font-size: 14px; font-weight: 600; }
+.source-card-value { font-size: 30px; font-weight: 600; margin: 9px 0 3px; letter-spacing: -.025em; }
+.source-card-meta { color: var(--text-muted); font-size: 11px; }
+.source-route {
+  position: absolute; right: 15px; top: 15px; color: var(--text-muted); font-size: 10px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+.source-badge {
+  display: inline-flex; align-items: center; gap: 5px; padding: 3px 7px;
+  border-radius: 999px; border: 1px solid color-mix(in srgb, var(--badge-color) 55%, transparent);
+  background: color-mix(in srgb, var(--badge-color) 13%, transparent);
+  color: var(--badge-color); font-size: 10px; font-weight: 700; white-space: nowrap;
+}
+.source-badge::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.source-badge.app { --badge-color: var(--source-app); }
+.source-badge.db { --badge-color: var(--source-db); }
+.section-title {
+  display: flex; align-items: center; gap: 9px; margin: 18px 0 8px;
+  color: var(--text-primary);
+}
+.section-title h2 { font-size: 15px; margin: 0; font-weight: 600; }
+.section-title .desc { color: var(--text-muted); font-size: 11px; }
+.card { border-radius: 4px; padding: 13px 15px; }
+.card:hover { border-color: #41464d; }
+.kpis { grid-template-columns: repeat(4, minmax(160px, 1fr)); gap: 8px; }
+.tile .value { font-size: 26px; }
+.charts { grid-template-columns: minmax(0, 3fr) minmax(310px, 2fr); gap: 8px; }
+.tables { gap: 8px; grid-template-columns: minmax(0, 1fr); min-width: 0; }
+.tables > *, .card, .scroll { min-width: 0; max-width: 100%; }
+.scroll { max-height: 470px; overflow: auto; }
+th { position: sticky; top: 0; z-index: 2; background: var(--surface-1); padding: 8px 10px 8px 0; }
+td { padding: 7px 10px 7px 0; }
+tbody tr:hover td { background: rgba(255,255,255,.025); }
+.panel-hidden { display: none !important; }
+
+@media (max-width: 900px) {
+  .side-rail {
+    position: sticky; top: 0; width: 100%; height: 48px; flex-direction: row;
+    padding: 5px 8px; border-right: 0; border-bottom: 1px solid #282b30; overflow-x: auto;
+  }
+  .rail-brand { width: 34px; height: 34px; margin: 0 5px 0 0; flex: none; }
+  .rail-nav { flex-direction: row; width: auto; gap: 2px; }
+  .nav-item { width: auto; min-width: 72px; min-height: 34px; display: flex; padding: 5px 8px; }
+  .nav-item.active { box-shadow: inset 0 -2px #ff9830; }
+  .viz-root { margin-left: 0; padding: 0 10px 30px; }
+  .topbar { margin: 0 -10px; padding: 0 10px; min-height: 50px; }
+  .head .sub, .breadcrumb { display: none; }
+  .source-overview, .charts { grid-template-columns: 1fr; }
+  .source-route { position: static; margin-top: 9px; text-align: left; }
+  .section-title, .card-head { flex-wrap: wrap; }
+  .kpis { grid-template-columns: repeat(2, minmax(145px, 1fr)); }
+  .filters { align-items: flex-end; }
+  .live { width: 100%; margin-left: 0; }
+}
+@media (max-width: 520px) {
+  .nav-item { min-width: 53px; padding: 5px 4px; }
+  .page-heading { align-items: start; flex-direction: column; }
+  .source-overview, .kpis { grid-template-columns: 1fr; }
+  .filter-sep { display: none; }
+  .filters { display: grid; grid-template-columns: 1fr 1fr; }
+  .filter-group { flex-direction: column; align-items: stretch; }
+  .filter-group.source-choice { grid-column: 1 / -1; flex-direction: row; }
+  .source-filter { flex: 1; }
+  .live { grid-column: 1 / -1; }
+}
 </style>
 </head>
 <body>
+<aside class="side-rail" aria-label="대시보드 섹션">
+  <div class="rail-brand" aria-label="QueryEcho">Q</div>
+  <nav class="rail-nav">
+    <button class="nav-item active" type="button" data-view="overview" title="Overview">
+      <span class="ico">▦</span><span class="nav-label">Overview</span>
+    </button>
+    <button class="nav-item" type="button" data-view="app" title="APP Proxy">
+      <span class="ico">A</span><span class="nav-label">APP</span>
+    </button>
+    <button class="nav-item" type="button" data-view="db" title="DB Server">
+      <span class="ico">D</span><span class="nav-label">DB</span>
+    </button>
+    <button class="nav-item" type="button" data-view="slow" title="Slow Queries">
+      <span class="ico">!</span><span class="nav-label">Slow</span>
+    </button>
+    <button class="nav-item" type="button" data-view="tx" title="Transactions">
+      <span class="ico">↳</span><span class="nav-label">TX</span>
+    </button>
+  </nav>
+</aside>
 <div class="viz-root">
 
-  <div class="head">
-    <h1>QueryEcho</h1>
-    <span class="sub">DB Observability — 쿼리 · 트랜잭션 실시간 지표</span>
-    <span class="spacer"></span>
-    <button class="btn" id="theme-btn" type="button">테마</button>
+  <div class="topbar">
+    <div class="head">
+      <h1>QueryEcho</h1>
+      <span class="sub">Database observability</span>
+      <span class="spacer"></span>
+      <span class="breadcrumb">Dashboards / <span id="breadcrumb-view">Overview</span></span>
+    </div>
   </div>
 
-  <!-- 필터는 한 행에만, 카드 안이 아니라 위에 둔다. 아래 모든 카드가 같은 조건으로 다시 그려진다. -->
-  <div class="filters">
-    <label for="f-bucket">집계 단위</label>
-    <select id="f-bucket">
-      <option value="5">5초</option>
-      <option value="10" selected>10초</option>
-      <option value="30">30초</option>
-      <option value="60">60초</option>
-    </select>
-
-    <label for="f-limit">표본 수</label>
-    <select id="f-limit">
-      <option value="200">최근 200건</option>
-      <option value="500" selected>최근 500건</option>
-      <option value="2000">최근 2000건</option>
-    </select>
-
-    <label for="f-refresh">자동 갱신</label>
-    <select id="f-refresh">
-      <option value="0">끔</option>
-      <option value="2000">2초</option>
-      <option value="5000" selected>5초</option>
-      <option value="10000">10초</option>
-    </select>
-
-    <button class="btn" id="refresh-btn" type="button">새로고침</button>
+  <div class="page-heading">
+    <div>
+      <h2 id="view-title">Query Overview</h2>
+      <p id="view-desc">애플리케이션 프록시와 DB 서버 수집 상태를 한 화면에서 비교합니다.</p>
+    </div>
+    <span class="spacer"></span>
     <span class="live" id="live"><span class="dot"></span><span id="live-text">—</span></span>
+  </div>
+
+  <div class="filters">
+    <div class="filter-group source-choice" aria-label="수집 경로 필터">
+      <button class="source-filter active" data-source="ALL" type="button">전체</button>
+      <button class="source-filter" data-source="APP_PROXY" type="button">APP_PROXY</button>
+      <button class="source-filter" data-source="DB_SERVER" type="button">DB_SERVER</button>
+    </div>
+    <span class="filter-sep"></span>
+    <div class="filter-group">
+      <label for="f-dbtype">DB</label>
+      <select id="f-dbtype">
+        <option value="all">전체 DB</option>
+        <option value="mysql">MySQL</option>
+        <option value="postgresql">PostgreSQL</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label for="f-bucket">집계</label>
+      <select id="f-bucket">
+        <option value="5">5초</option>
+        <option value="10" selected>10초</option>
+        <option value="30">30초</option>
+        <option value="60">60초</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label for="f-limit">표본</label>
+      <select id="f-limit">
+        <option value="200">200건</option>
+        <option value="500" selected>500건</option>
+        <option value="2000">2000건</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label for="f-refresh">갱신</label>
+      <select id="f-refresh">
+        <option value="0">끔</option>
+        <option value="2000">2초</option>
+        <option value="5000" selected>5초</option>
+        <option value="10000">10초</option>
+      </select>
+    </div>
+    <button class="btn primary" id="refresh-btn" type="button">새로고침</button>
   </div>
 
   <div id="content">
 
+    <div class="source-overview" data-sector="overview">
+      <div class="source-card app">
+        <div class="source-card-head">
+          <span class="source-badge app">APP_PROXY</span>
+          <span class="source-card-title">Spring JDBC Proxy</span>
+        </div>
+        <div class="source-card-value" id="source-app-value">—</div>
+        <div class="source-card-meta" id="source-app-meta">최근 프록시 쿼리 표본</div>
+        <div class="source-route">Spring API → SDK/Proxy → QueryEcho</div>
+      </div>
+      <div class="source-card db">
+        <div class="source-card-head">
+          <span class="source-badge db">DB_SERVER</span>
+          <span class="source-card-title">Database Collectors</span>
+        </div>
+        <div class="source-card-value" id="source-db-value">—</div>
+        <div class="source-card-meta" id="source-db-meta">최근 서버 쿼리 표본</div>
+        <div class="source-route">DB stats → Collector → QueryEcho</div>
+      </div>
+    </div>
+
+    <div class="section-title" data-sector="overview app">
+      <span class="source-badge app">APP_PROXY</span>
+      <h2>애플리케이션 프록시</h2>
+      <span class="desc">API 요청 안에서 SDK/JDBC 프록시로 관찰한 실행</span>
+    </div>
+
     <!-- 헤드라인 숫자들은 차트가 아니라 스탯 타일이 맞는 형태다. -->
-    <div class="kpis">
+    <div class="kpis" data-sector="overview app">
       <div class="card tile">
         <div class="label">수집된 트랜잭션</div>
         <div class="value" id="k-tx">—</div>
@@ -256,7 +488,7 @@ td.sql {
       </div>
     </div>
 
-    <div class="charts">
+    <div class="charts" data-sector="overview app">
       <div class="card">
         <div class="card-head">
           <h2>쿼리 실행시간</h2>
@@ -293,32 +525,51 @@ td.sql {
     </div>
 
     <div class="tables">
-      <div class="card">
+      <div class="card" data-sector="slow app">
         <div class="card-head">
+          <span class="source-badge app">APP_PROXY</span>
           <h2>슬로우 쿼리</h2>
           <span class="cap" id="slow-cap">—</span>
         </div>
         <div class="scroll" id="slow-table"></div>
       </div>
 
-      <div class="card">
+      <div class="card" data-sector="slow app">
         <div class="card-head">
+          <span class="source-badge app">APP_PROXY</span>
           <h2>반복 쿼리 (N+1 의심)</h2>
           <span class="cap">같은 스레드에서 짧은 시간에 반복 실행된 패턴</span>
         </div>
         <div class="scroll" id="nplus-table"></div>
       </div>
 
-      <div class="card">
+      <div class="section-title" data-sector="overview db">
+        <span class="source-badge db">DB_SERVER</span>
+        <h2>DB 서버 수집</h2>
+        <span class="desc">DBeaver·CLI·모든 애플리케이션에서 DB가 직접 관찰한 실행</span>
+      </div>
+
+      <div class="card" data-sector="overview db">
         <div class="card-head">
+          <span class="source-badge db">DB_SERVER</span>
           <h2>DB 서버 쿼리</h2>
-          <span class="cap" id="server-query-cap">DBeaver · CLI · SDK 미설치 앱 포함</span>
+          <span class="cap" id="server-query-cap">개별 실행 이력을 제공하는 DB · MySQL</span>
         </div>
         <div class="scroll" id="server-query-table"></div>
       </div>
 
-      <div class="card">
+      <div class="card" data-sector="overview db">
         <div class="card-head">
+          <span class="source-badge db">DB_SERVER</span>
+          <h2>DB 서버 쿼리 집계</h2>
+          <span class="cap" id="server-aggregate-cap">누적 통계를 제공하는 DB · PostgreSQL</span>
+        </div>
+        <div class="scroll" id="server-aggregate-table"></div>
+      </div>
+
+      <div class="card" data-sector="tx app">
+        <div class="card-head">
+          <span class="source-badge app">APP_PROXY</span>
           <h2>트랜잭션</h2>
           <span class="cap">커밋 / 롤백 및 실패 사유</span>
         </div>
@@ -408,6 +659,10 @@ td.sql {
     var d = el("span", "sdot"); d.style.background = color;
     s.appendChild(d); s.appendChild(el("span", null, label));   // 색 단독이 아니라 항상 라벨을 동반
     return s;
+  }
+  function sourceBadge(kind) {
+    var isDb = kind === "DB_SERVER";
+    return el("span", "source-badge " + (isDb ? "db" : "app"), isDb ? "DB_SERVER" : "APP_PROXY");
   }
   function emptyBox(msg) { return el("div", "empty", msg); }
 
@@ -657,6 +912,21 @@ td.sql {
     $("k-avg").textContent = stats.total ? fmtDur(stats.avgDurationUs) : "—";
   }
 
+  function renderSourceSummary(stats, appQueries, serverQueries, serverAggregates) {
+    var aggregateExecutions = serverAggregates.reduce(function (sum, q) {
+      return sum + (q.executionCount || 0);
+    }, 0);
+    var dbTypes = {};
+    serverQueries.concat(serverAggregates).forEach(function (q) {
+      if (q.dbType) dbTypes[q.dbType] = true;
+    });
+    $("source-app-value").textContent = fmtCount(appQueries.length) + " queries";
+    $("source-app-meta").textContent = "최근 프록시 표본 · 트랜잭션 " + fmtCount(stats.total) + "건";
+    $("source-db-value").textContent = fmtCount(serverQueries.length + aggregateExecutions) + " events";
+    $("source-db-meta").textContent = Object.keys(dbTypes).join(" · ") +
+      " · 개별 " + fmtCount(serverQueries.length) + " / 집계 실행 " + fmtCount(aggregateExecutions);
+  }
+
   // ── 표들 ────────────────────────────────────────────────
   function renderSlowTable(slow) {
     var host = $("slow-table"); host.textContent = "";
@@ -717,11 +987,13 @@ td.sql {
     var host = $("server-query-table"); host.textContent = "";
     $("server-query-cap").textContent = "DBeaver · CLI · SDK 미설치 앱 포함 · 최근 " + queries.length + "건";
     if (!queries.length) {
-      host.appendChild(emptyBox("DB 서버 수집기가 비활성화됐거나 아직 관찰된 쿼리가 없습니다."));
+      host.appendChild(emptyBox($("f-dbtype").value === "postgresql"
+        ? "PostgreSQL은 개별 실행 대신 아래 집계 증가분으로 표시됩니다."
+        : "DB 서버 수집기가 비활성화됐거나 아직 관찰된 쿼리가 없습니다."));
       return;
     }
     host.appendChild(table(
-      [{ label: "관찰 시각", cls: "t" }, { label: "출처" }, { label: "실행시간", cls: "num" },
+      [{ label: "관찰 시각", cls: "t" }, { label: "출처" }, { label: "DB" }, { label: "실행시간", cls: "num" },
        { label: "유형" }, { label: "SQL" }, { label: "클라이언트" },
        { label: "검사/반환", cls: "num" }, { label: "결과" }],
       queries.map(function (q) {
@@ -729,13 +1001,40 @@ td.sql {
           (q.dbUser || "unknown") + "@" + (q.clientHost || "unknown");
         var result = q.succeeded ? "성공" : "실패 " + (q.errorCode || q.sqlState || "");
         return [{ text: fmtClock(q.observedAt), cls: "t" },
-                { text: q.sourceType, cls: "muted" },
+                { node: sourceBadge("DB_SERVER") },
+                { text: q.dbType + " · " + q.dbInstanceId, cls: "muted" },
                 { text: fmtDur(q.durationUs), cls: "num" },
                 { text: q.statementType },
                 { text: q.normalizedSql, cls: "sql" },
                 { text: client, cls: "muted" },
                 { text: q.rowsExamined.toLocaleString("ko-KR") + " / " + q.rowsSent.toLocaleString("ko-KR"), cls: "num" },
                 { node: statusPill(q.succeeded ? css("--status-good") : css("--status-critical"), result) }];
+      })
+    ));
+  }
+
+  function renderServerAggregates(items) {
+    var host = $("server-aggregate-table"); host.textContent = "";
+    $("server-aggregate-cap").textContent = "누적 통계 증가분 · 최근 " + items.length + "건";
+    if (!items.length) {
+      host.appendChild(emptyBox($("f-dbtype").value === "mysql"
+        ? "MySQL은 집계 대신 위 개별 실행 이력으로 표시됩니다."
+        : "집계형 DB 서버 수집기가 비활성화됐거나 새 실행이 없습니다."));
+      return;
+    }
+    host.appendChild(table(
+      [{ label: "관찰 시각", cls: "t" }, { label: "DB" }, { label: "출처" },
+       { label: "실행", cls: "num" }, { label: "평균", cls: "num" },
+       { label: "총 시간", cls: "num" }, { label: "처리 행", cls: "num" }, { label: "SQL" }],
+      items.map(function (q) {
+        return [{ text: fmtClock(q.observedAt), cls: "t" },
+                { text: q.dbType + " · " + q.dbInstanceId },
+                { node: sourceBadge("DB_SERVER") },
+                { text: q.executionCount.toLocaleString("ko-KR"), cls: "num" },
+                { text: fmtDur(q.avgDurationUs), cls: "num" },
+                { text: fmtDur(q.totalDurationUs), cls: "num" },
+                { text: q.rowsProcessed.toLocaleString("ko-KR"), cls: "num" },
+                { text: q.normalizedSql, cls: "sql" }];
       })
     ));
   }
@@ -750,6 +1049,19 @@ td.sql {
   }
 
   var timer = null;
+  var latestDashboardData = null;
+
+  function renderFilteredServerData() {
+    if (!latestDashboardData) return;
+    var dbType = $("f-dbtype").value;
+    var matches = function (q) { return dbType === "all" || q.dbType === dbType; };
+    var serverQueries = latestDashboardData.serverQueries.filter(matches);
+    var serverAggregates = latestDashboardData.serverAggregates.filter(matches);
+    renderServerQueries(serverQueries);
+    renderServerAggregates(serverAggregates);
+    renderSourceSummary(latestDashboardData.stats, latestDashboardData.queries, serverQueries, serverAggregates);
+  }
+
   function load() {
     var bucket = $("f-bucket").value, limit = $("f-limit").value;
     $("content").classList.add("is-loading");   // 스켈레톤 대신 직전 렌더를 흐리게 유지
@@ -759,9 +1071,11 @@ td.sql {
       getJson(API + "/queries/heatmap?bucketSeconds=" + bucket + "&limit=" + limit),
       getJson(API + "/queries?limit=" + limit),
       getJson(API + "/transactions?limit=50"),
-      getJson(API + "/server-queries?limit=100")
+      getJson(API + "/server-queries?limit=100"),
+      getJson(API + "/server-query-aggregates?limit=100")
     ]).then(function (res) {
-      var stats = res[0], slow = res[1], heat = res[2], queries = res[3], txs = res[4], serverQueries = res[5];
+      var stats = res[0], slow = res[1], heat = res[2], queries = res[3], txs = res[4],
+          serverQueries = res[5], serverAggregates = res[6];
       var buckets = heat.buckets || [];
       $("lat-cap").textContent = heat.bucketSeconds + "초 구간별 평균 · 최대";
       $("vol-cap").textContent = heat.bucketSeconds + "초 구간별 건수";
@@ -774,8 +1088,14 @@ td.sql {
       renderChartTables(buckets);
       renderSlowTable(slow);
       renderNPlusOne(queries);
-      renderServerQueries(serverQueries);
       renderTxTable(txs);
+      latestDashboardData = {
+        stats: stats,
+        queries: queries,
+        serverQueries: serverQueries,
+        serverAggregates: serverAggregates
+      };
+      renderFilteredServerData();
       $("live").classList.remove("off");
       $("live-text").textContent = "갱신 " + fmtClock(new Date().toISOString());
       lastBuckets = buckets;
@@ -788,6 +1108,36 @@ td.sql {
     });
   }
   var lastBuckets = [];
+  var activeView = "overview";
+  var viewCopy = {
+    overview: ["Query Overview", "애플리케이션 프록시와 DB 서버 수집 상태를 한 화면에서 비교합니다.", "Overview"],
+    app: ["APP Proxy", "Spring API 요청 중 SDK/JDBC 프록시가 수집한 쿼리입니다.", "APP Proxy"],
+    db: ["DB Server", "DBeaver·CLI를 포함해 DB 서버가 직접 관찰한 쿼리입니다.", "DB Server"],
+    slow: ["Slow Queries", "APP 프록시에서 임계값을 넘거나 반복된 쿼리를 분석합니다.", "Slow Queries"],
+    tx: ["Transactions", "APP 프록시가 수집한 커밋·롤백과 실패 원인을 확인합니다.", "Transactions"]
+  };
+
+  function activateView(view) {
+    if (!viewCopy[view]) view = "overview";
+    activeView = view;
+    document.querySelectorAll("[data-sector]").forEach(function (node) {
+      var sectors = node.getAttribute("data-sector").split(/\s+/);
+      node.classList.toggle("panel-hidden", sectors.indexOf(view) < 0);
+    });
+    document.querySelectorAll(".nav-item").forEach(function (btn) {
+      btn.classList.toggle("active", btn.getAttribute("data-view") === view);
+    });
+    var source = view === "db" ? "DB_SERVER" : (view === "overview" ? "ALL" : "APP_PROXY");
+    document.querySelectorAll(".source-filter").forEach(function (btn) {
+      btn.classList.toggle("active", btn.getAttribute("data-source") === source);
+    });
+    $("f-dbtype").disabled = view !== "db" && view !== "overview";
+    $("view-title").textContent = viewCopy[view][0];
+    $("view-desc").textContent = viewCopy[view][1];
+    $("breadcrumb-view").textContent = viewCopy[view][2];
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    setTimeout(function () { renderLatency(lastBuckets); renderVolume(lastBuckets); }, 50);
+  }
 
   function restartTimer() {
     if (timer) clearInterval(timer);
@@ -797,8 +1147,19 @@ td.sql {
 
   // ── 이벤트 배선 ─────────────────────────────────────────
   ["f-bucket", "f-limit"].forEach(function (id) { $(id).addEventListener("change", load); });
+  $("f-dbtype").addEventListener("change", renderFilteredServerData);
   $("f-refresh").addEventListener("change", restartTimer);
   $("refresh-btn").addEventListener("click", load);
+
+  document.querySelectorAll(".nav-item").forEach(function (btn) {
+    btn.addEventListener("click", function () { activateView(btn.getAttribute("data-view")); });
+  });
+  document.querySelectorAll(".source-filter").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var source = btn.getAttribute("data-source");
+      activateView(source === "DB_SERVER" ? "db" : (source === "APP_PROXY" ? "app" : "overview"));
+    });
+  });
 
   document.querySelectorAll(".tv-toggle").forEach(function (btn) {
     btn.addEventListener("click", function () {
@@ -811,14 +1172,6 @@ td.sql {
     });
   });
 
-  $("theme-btn").addEventListener("click", function () {
-    var cur = document.documentElement.getAttribute("data-theme");
-    var dark = cur === "dark" || (!cur && matchMedia("(prefers-color-scheme: dark)").matches);
-    document.documentElement.setAttribute("data-theme", dark ? "light" : "dark");
-    // 색 토큰이 바뀌었으므로 SVG를 다시 그린다(SVG 속성은 CSS 변수를 따라가지 않는다).
-    renderLatency(lastBuckets); renderVolume(lastBuckets);
-  });
-
   // 폭이 바뀌면 SVG를 다시 계산한다(픽셀 좌표로 그리므로 늘려서 왜곡시키지 않는다).
   var rt = null;
   window.addEventListener("resize", function () {
@@ -826,6 +1179,7 @@ td.sql {
     rt = setTimeout(function () { renderLatency(lastBuckets); renderVolume(lastBuckets); }, 150);
   });
 
+  activateView("overview");
   load();
   restartTimer();
 })();
