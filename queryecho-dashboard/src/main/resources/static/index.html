@@ -311,6 +311,14 @@ td.sql {
 
       <div class="card">
         <div class="card-head">
+          <h2>DB 서버 쿼리</h2>
+          <span class="cap" id="server-query-cap">DBeaver · CLI · SDK 미설치 앱 포함</span>
+        </div>
+        <div class="scroll" id="server-query-table"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
           <h2>트랜잭션</h2>
           <span class="cap">커밋 / 롤백 및 실패 사유</span>
         </div>
@@ -705,6 +713,33 @@ td.sql {
     ));
   }
 
+  function renderServerQueries(queries) {
+    var host = $("server-query-table"); host.textContent = "";
+    $("server-query-cap").textContent = "DBeaver · CLI · SDK 미설치 앱 포함 · 최근 " + queries.length + "건";
+    if (!queries.length) {
+      host.appendChild(emptyBox("DB 서버 수집기가 비활성화됐거나 아직 관찰된 쿼리가 없습니다."));
+      return;
+    }
+    host.appendChild(table(
+      [{ label: "관찰 시각", cls: "t" }, { label: "출처" }, { label: "실행시간", cls: "num" },
+       { label: "유형" }, { label: "SQL" }, { label: "클라이언트" },
+       { label: "검사/반환", cls: "num" }, { label: "결과" }],
+      queries.map(function (q) {
+        var client = (q.clientProgram || "unknown") + " · " +
+          (q.dbUser || "unknown") + "@" + (q.clientHost || "unknown");
+        var result = q.succeeded ? "성공" : "실패 " + (q.errorCode || q.sqlState || "");
+        return [{ text: fmtClock(q.observedAt), cls: "t" },
+                { text: q.sourceType, cls: "muted" },
+                { text: fmtDur(q.durationUs), cls: "num" },
+                { text: q.statementType },
+                { text: q.normalizedSql, cls: "sql" },
+                { text: client, cls: "muted" },
+                { text: q.rowsExamined.toLocaleString("ko-KR") + " / " + q.rowsSent.toLocaleString("ko-KR"), cls: "num" },
+                { node: statusPill(q.succeeded ? css("--status-good") : css("--status-critical"), result) }];
+      })
+    ));
+  }
+
   // ── 데이터 로드 ─────────────────────────────────────────
   var API = "/api/v1/metrics";
   function getJson(url) {
@@ -723,9 +758,10 @@ td.sql {
       getJson(API + "/queries/slow?limit=50"),
       getJson(API + "/queries/heatmap?bucketSeconds=" + bucket + "&limit=" + limit),
       getJson(API + "/queries?limit=" + limit),
-      getJson(API + "/transactions?limit=50")
+      getJson(API + "/transactions?limit=50"),
+      getJson(API + "/server-queries?limit=100")
     ]).then(function (res) {
-      var stats = res[0], slow = res[1], heat = res[2], queries = res[3], txs = res[4];
+      var stats = res[0], slow = res[1], heat = res[2], queries = res[3], txs = res[4], serverQueries = res[5];
       var buckets = heat.buckets || [];
       $("lat-cap").textContent = heat.bucketSeconds + "초 구간별 평균 · 최대";
       $("vol-cap").textContent = heat.bucketSeconds + "초 구간별 건수";
@@ -738,6 +774,7 @@ td.sql {
       renderChartTables(buckets);
       renderSlowTable(slow);
       renderNPlusOne(queries);
+      renderServerQueries(serverQueries);
       renderTxTable(txs);
       $("live").classList.remove("off");
       $("live-text").textContent = "갱신 " + fmtClock(new Date().toISOString());

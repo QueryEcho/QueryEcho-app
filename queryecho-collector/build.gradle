@@ -9,7 +9,8 @@ dependencies {
     // collector가 "서버"가 되는 순간부터 이건 선택이 아니라 필수 의존성이다.
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
-    implementation 'org.flywaydb:flyway-core'
+    // Spring Boot 4에서는 Flyway 자동 구성이 별도 starter로 분리되어 있다.
+    implementation 'org.springframework.boot:spring-boot-starter-flyway'
     // Flyway 10+에서는 PostgreSQL 지원이 별도 모듈로 분리되어 있다.
     runtimeOnly 'org.flywaydb:flyway-database-postgresql'
 }
