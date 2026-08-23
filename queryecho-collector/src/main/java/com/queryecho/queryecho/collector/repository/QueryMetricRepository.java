@@ -5,6 +5,7 @@ import com.queryecho.queryecho.collector.persistence.entity.QueryExecutionEntity
 import com.queryecho.queryecho.collector.persistence.repository.QueryExecutionJpaRepository;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Repository;
 
@@ -30,6 +31,13 @@ public class QueryMetricRepository {
     public List<QueryMetricRecord> findSlow(int limit) {
         return repository.findByDurationUsGreaterThanEqualOrderByExecutedAtDesc(
                         properties.slowQueryThresholdUs(), page(limit)).stream()
+                .map(this::toRecord)
+                .toList();
+    }
+
+    /** 트랜잭션 상세 화면에서 JDBC 실행 순서 그대로 쿼리 흐름을 복원한다. */
+    public List<QueryMetricRecord> findByTransactionId(UUID transactionId) {
+        return repository.findByTransactionIdOrderByExecutedAtAsc(transactionId).stream()
                 .map(this::toRecord)
                 .toList();
     }

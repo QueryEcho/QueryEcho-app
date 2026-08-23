@@ -18,6 +18,9 @@ public interface QueryExecutionJpaRepository extends JpaRepository<QueryExecutio
             long durationUs, Pageable pageable);
 
     @EntityGraph(attributePaths = "pattern")
+    List<QueryExecutionEntity> findByTransactionIdOrderByExecutedAtAsc(UUID transactionId);
+
+    @EntityGraph(attributePaths = "pattern")
     List<QueryExecutionEntity> findByExecutedAtGreaterThanEqualAndExecutedAtLessThan(
             Instant fromInclusive, Instant toExclusive);
 
