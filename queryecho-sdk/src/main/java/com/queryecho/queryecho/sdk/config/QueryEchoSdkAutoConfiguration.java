@@ -40,23 +40,12 @@ import org.springframework.transaction.annotation.EnableTransactionManagement;
 @EnableTransactionManagement(order = 100)
 public class QueryEchoSdkAutoConfiguration {
 
-    /**
-     * 전송 구현체를 설정값에 따라 하나만 고른다.
-     *
-     * 왜 @ConditionalOnProperty 두 개로 나누지 않고 if 분기 하나로 처리했는가?
-     *  - 조건부 빈 두 개로 나누면 설정값이 예상 밖일 때 빈이 아예 하나도 만들어지지 않아
-     *    애플리케이션이 알 수 없는 이유로 실패한다. 여기서는 HTTP가 아니면 LOCAL로 떨어지게 해서
-     *    어떤 값이 들어와도 전송 구현체가 반드시 하나는 존재하도록 보장한다.
-     *
-     * destroyMethod를 명시하지 않은 이유:
-     *  - @Bean의 기본값이 "추론"이라, AutoCloseable을 구현한 HttpMetricEventPublisher는
-     *    종료 시 close()가 자동 호출되어 백그라운드 스레드가 정리되고,
-     *    LocalMetricEventPublisher는 해당되지 않아 그냥 넘어간다.
-     *    (명시하면 close()가 없는 LOCAL 쪽에서 오히려 오류가 난다.)
-     */
+    //전송 설정에 따라 Local 또는 Http를 선택한다.
+
     @Bean
     public MetricEventPublisher metricEventPublisher(QueryEchoSdkProperties properties,
                                                       ApplicationEventPublisher applicationEventPublisher) {
+        // 그 앞을 보안 처리 Publisher로 한 번 더 감싼다.
         MetricEventPublisher transport = properties.getTransport() == QueryEchoSdkProperties.Transport.HTTP
                 ? new HttpMetricEventPublisher(properties)
                 : new LocalMetricEventPublisher(applicationEventPublisher);
@@ -64,7 +53,7 @@ public class QueryEchoSdkAutoConfiguration {
     }
 
     /**
-     * DataSource를 자동으로 감싸는 BeanPostProcessor.
+     * DataSource를 자동으로 감싸는 BeanPostProcessor.(프록시로 바꿔주는)
      */
     @Bean
     public static QueryEchoDataSourceBeanPostProcessor queryEchoDataSourceBeanPostProcessor(
@@ -73,8 +62,10 @@ public class QueryEchoSdkAutoConfiguration {
         return new QueryEchoDataSourceBeanPostProcessor(publisherProvider, properties);
     }
 
+    // 트랜잭션의 실행시간과 Commit-Rollback를 측정한다
     @Bean
-    public TransactionMetricsAspect transactionMetricsAspect(MetricEventPublisher publisher) {
-        return new TransactionMetricsAspect(publisher);
+    public TransactionMetricsAspect transactionMetricsAspect(MetricEventPublisher publisher,
+                                                              QueryEchoSdkProperties properties) {
+        return new TransactionMetricsAspect(publisher, properties);
     }
 }

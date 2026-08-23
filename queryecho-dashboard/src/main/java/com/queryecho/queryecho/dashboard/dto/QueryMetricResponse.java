@@ -14,6 +14,7 @@ import java.util.UUID;
  */
 public record QueryMetricResponse(
         UUID eventId,
+        UUID transactionId,
         String environment,
         String appName,
         String instanceId,
@@ -33,6 +34,7 @@ public record QueryMetricResponse(
     public static QueryMetricResponse from(QueryMetricRecord record) {
         return new QueryMetricResponse(
                 record.eventId(),
+                record.transactionId(),
                 record.environment(),
                 record.appName(),
                 record.instanceId(),

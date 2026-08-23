@@ -37,6 +37,7 @@ public class QueryMetricRepository {
     private QueryMetricRecord toRecord(QueryExecutionEntity entity) {
         return new QueryMetricRecord(
                 entity.getEventId(),
+                entity.getTransactionId(),
                 entity.getEnvironment(),
                 entity.getAppName(),
                 entity.getInstanceId(),

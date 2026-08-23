@@ -16,6 +16,7 @@ import java.util.UUID;
  */
 public record QueryMetricRecord(
         UUID eventId,
+        UUID transactionId,
         String environment,
         String appName,
         String instanceId,

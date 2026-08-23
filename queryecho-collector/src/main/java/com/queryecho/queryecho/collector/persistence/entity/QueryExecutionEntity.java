@@ -21,6 +21,9 @@ public class QueryExecutionEntity {
     @Column(name = "event_id", nullable = false)
     private UUID eventId;
 
+    @Column(name = "transaction_id")
+    private UUID transactionId;
+
     @Column(name = "executed_at", nullable = false)
     private Instant executedAt;
 
@@ -65,12 +68,13 @@ public class QueryExecutionEntity {
     protected QueryExecutionEntity() {
     }
 
-    public QueryExecutionEntity(UUID eventId, Instant executedAt, Instant ingestedAt,
+    public QueryExecutionEntity(UUID eventId, UUID transactionId, Instant executedAt, Instant ingestedAt,
                                 String environment, String appName, String instanceId,
                                 String datasourceName, QueryPatternEntity pattern,
                                 long durationUs, boolean succeeded, String sqlState,
                                 String threadName, short paramCount, Map<String, Object> params) {
         this.eventId = eventId;
+        this.transactionId = transactionId;
         this.executedAt = executedAt;
         this.ingestedAt = ingestedAt;
         this.environment = environment;
@@ -87,6 +91,7 @@ public class QueryExecutionEntity {
     }
 
     public UUID getEventId() { return eventId; }
+    public UUID getTransactionId() { return transactionId; }
     public Instant getExecutedAt() { return executedAt; }
     public Instant getIngestedAt() { return ingestedAt; }
     public String getEnvironment() { return environment; }

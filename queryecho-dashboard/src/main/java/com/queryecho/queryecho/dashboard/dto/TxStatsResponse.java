@@ -8,13 +8,15 @@ import com.queryecho.queryecho.collector.repository.TxMetricRepository;
  * 대시보드 상단 요약 카드(rollback rate %)는 매번 전체 목록을 내려받아
  * 클라이언트에서 재계산할 필요 없이 가벼운 집계 하나만 조회하면 되도록 하기 위함이다.
  */
-public record TxStatsResponse(long total, long commitCount, long rollbackCount, double rollbackRate, double avgDurationUs) {
+public record TxStatsResponse(long total, long commitCount, long rollbackCount, long unknownCount,
+                              double rollbackRate, double avgDurationUs) {
 
     public static TxStatsResponse from(TxMetricRepository.Stats stats) {
         return new TxStatsResponse(
                 stats.total(),
                 stats.commitCount(),
                 stats.rollbackCount(),
+                stats.unknownCount(),
                 stats.rollbackRate(),
                 stats.avgDurationUs());
     }

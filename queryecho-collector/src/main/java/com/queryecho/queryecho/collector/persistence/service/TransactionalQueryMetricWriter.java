@@ -53,6 +53,7 @@ class TransactionalQueryMetricWriter {
 
         QueryExecutionEntity execution = new QueryExecutionEntity(
                 event.eventId(),
+                event.transactionId(),
                 event.executedAt(),
                 Instant.now(),
                 safe(event.environment(), "default"),

@@ -1,6 +1,7 @@
 package com.queryecho.queryecho.sdk.dto;
 
 import java.time.Instant;
+import java.util.UUID;
 
 /**
  * @Transactional 메서드 1회 호출(정확히는 물리 트랜잭션 1개)에 대해, 트랜잭션이 실제로
@@ -12,11 +13,18 @@ import java.time.Instant;
  *    예외 클래스명 + 메시지를 별도로 실어 대시보드에서 바로 원인을 확인할 수 있게 했다.
  */
 public record TxMetricEvent(
-        String transactionName, // 트랜잭션 네임(어느 메서드)
+        UUID transactionId, // 실제 물리 트랜잭션 1건의 고유 ID이자 내부 쿼리와의 연결 키
+        String appName,
+        String environment,
+        String instanceId,
+        String transactionName, // 패키지/파라미터 타입을 포함한 메서드 시그니처
         long durationUs, // 트랜잭션 실행 시간(마이크로초). 단위 근거는 QueryMetricEvent.durationUs 참고.
-        TxStatus status, // 상태( COMMIT/ROLLBACK)
-        Instant executedAt, // 실행시간
+        TxStatus status, // COMMIT/ROLLBACK/UNKNOWN
+        Instant completedAt, // 실제 커밋/롤백 완료 시각
         String threadName, // 실행 스레드
-        String failureReason // ROLLBACK -> 예외 메세지 OR NULL
+        String failureType, // ROLLBACK을 유발한 예외 클래스
+        String failureMessage, // 보안 설정에서 허용한 경우에만 Collector까지 전달
+        String traceId, // 추후 분산 추적 연동용
+        String requestId // 추후 QueryEcho 요청 경계 연동용
 ) {
 }

@@ -1,65 +1,58 @@
 package com.queryecho.queryecho.collector.repository;
 
+import com.queryecho.queryecho.collector.persistence.entity.TransactionExecutionEntity;
+import com.queryecho.queryecho.collector.persistence.repository.TransactionExecutionJpaRepository;
 import com.queryecho.queryecho.sdk.dto.TxStatus;
-import java.util.ArrayList;
-import java.util.Deque;
 import java.util.List;
-import java.util.concurrent.ConcurrentLinkedDeque;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Repository;
 
-/**
- * 트랜잭션 지표 저장소. 설계 근거는 {@link QueryMetricRepository}와 동일
- * (인메모리 링버퍼, observer effect 회피).
- */
+/** 기존 Dashboard API 계약을 유지하면서 PostgreSQL 트랜잭션 실행 테이블을 읽는다. */
 @Repository
 public class TxMetricRepository {
 
-    private static final int MAX_SIZE = 2000;
+    private final TransactionExecutionJpaRepository repository;
 
-    private final Deque<TxMetricRecord> records = new ConcurrentLinkedDeque<>();
-
-    public void save(TxMetricRecord record) {
-        records.addLast(record);
-        if (records.size() > MAX_SIZE) {
-            records.pollFirst();
-        }
+    public TxMetricRepository(TransactionExecutionJpaRepository repository) {
+        this.repository = repository;
     }
 
-    public List<TxMetricRecord> findRecent(int limit) {
-        List<TxMetricRecord> result = new ArrayList<>(Math.min(limit, records.size()));
-        var it = records.descendingIterator();
-        while (it.hasNext() && result.size() < limit) {
-            result.add(it.next());
-        }
-        return result;
+    public List<TxMetricRecord> findRecent(int requestedLimit) {
+        int limit = Math.max(1, Math.min(requestedLimit, 2_000));
+        return repository.findAllByOrderByCompletedAtDesc(PageRequest.of(0, limit)).stream()
+                .map(this::toRecord)
+                .toList();
     }
 
-    /**
-     * 롤백율 계산용 - 현재 버퍼에 남아있는 범위 내에서의 커밋/롤백 집계.
-     * 왜 별도 카운터 필드를 유지하지 않고 매번 순회해서 계산하는가?
-     *  - 프로토타입 규모(최대 2000건)에서는 O(n) 순회 비용이 무시할 수준이고,
-     *    누적 카운터를 따로 두면 "링버퍼에서 밀려난 오래된 레코드"의 카운트를 어떻게
-     *    빼줄지에 대한 별도 로직이 필요해져 복잡도만 커진다. 데이터가 늘어나 실제로
-     *    문제가 되면 그때 집계 전용 카운터로 옮기면 된다.
-     */
     public Stats stats() {
-        long commit = 0;
-        long rollback = 0;
-        long totalDurationUs = 0;
-        for (TxMetricRecord record : records) {
-            totalDurationUs += record.durationUs();
-            if (record.status() == TxStatus.COMMIT) {
-                commit++;
-            } else {
-                rollback++;
-            }
-        }
-        long total = commit + rollback;
-        double avgDurationUs = total == 0 ? 0 : (double) totalDurationUs / total;
+        long commit = repository.countByStatus(TxStatus.COMMIT);
+        long rollback = repository.countByStatus(TxStatus.ROLLBACK);
+        long unknown = repository.countByStatus(TxStatus.UNKNOWN);
+        long total = commit + rollback + unknown;
         double rollbackRate = total == 0 ? 0 : (double) rollback / total;
-        return new Stats(total, commit, rollback, rollbackRate, avgDurationUs);
+        Double average = repository.averageDurationUs();
+        return new Stats(total, commit, rollback, unknown, rollbackRate,
+                average == null ? 0 : average);
     }
 
-    public record Stats(long total, long commitCount, long rollbackCount, double rollbackRate, double avgDurationUs) {
+    private TxMetricRecord toRecord(TransactionExecutionEntity entity) {
+        return new TxMetricRecord(
+                entity.getTransactionId(),
+                entity.getPattern().getAppName(),
+                entity.getEnvironment(),
+                entity.getInstanceId(),
+                entity.getPattern().getTransactionName(),
+                entity.getDurationUs(),
+                entity.getStatus(),
+                entity.getCompletedAt(),
+                entity.getThreadName(),
+                entity.getFailureType(),
+                entity.getFailureMessage(),
+                entity.getTraceId(),
+                entity.getRequestId());
+    }
+
+    public record Stats(long total, long commitCount, long rollbackCount, long unknownCount,
+                        double rollbackRate, double avgDurationUs) {
     }
 }

@@ -43,7 +43,9 @@ public class QueryEchoDataSourceProxy implements DataSource {
         return wrap(delegate.getConnection(username, password));
     }
 
+    // 프록시를 만드는 코드
     private Connection wrap(Connection connection) {
+        // 커넥션 획득 시간까지 측정하려면 delegate.getConnection() 호출 전후도 별도로 측정해야 한다.
         return (Connection) Proxy.newProxyInstance(
                 Connection.class.getClassLoader(),
                 new Class<?>[]{Connection.class},

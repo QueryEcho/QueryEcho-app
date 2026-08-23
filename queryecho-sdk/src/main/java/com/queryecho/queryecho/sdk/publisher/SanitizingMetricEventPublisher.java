@@ -2,6 +2,7 @@ package com.queryecho.queryecho.sdk.publisher;
 
 import com.queryecho.queryecho.sdk.config.QueryEchoSdkProperties;
 import com.queryecho.queryecho.sdk.dto.QueryMetricEvent;
+import com.queryecho.queryecho.sdk.dto.TxMetricEvent;
 import com.queryecho.queryecho.sdk.util.QueryFingerprint;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -27,6 +28,10 @@ public final class SanitizingMetricEventPublisher implements MetricEventPublishe
             delegate.publish(sanitize(queryEvent));
             return;
         }
+        if (event instanceof TxMetricEvent txEvent) {
+            delegate.publish(sanitize(txEvent));
+            return;
+        }
         delegate.publish(event);
     }
 
@@ -34,6 +39,7 @@ public final class SanitizingMetricEventPublisher implements MetricEventPublishe
         List<Object> captured = captureAllowed(event);
         return new QueryMetricEvent(
                 event.eventId(),
+                event.transactionId(),
                 event.appName(),
                 event.environment(),
                 event.instanceId(),
@@ -49,6 +55,28 @@ public final class SanitizingMetricEventPublisher implements MetricEventPublishe
                 event.threadName(),
                 event.succeeded(),
                 event.sqlState());
+    }
+
+    private TxMetricEvent sanitize(TxMetricEvent event) {
+        QueryEchoSdkProperties.Transaction transaction = properties.getTransaction();
+        String failureMessage = null;
+        if (transaction.isFailureMessageEnabled()) {
+            failureMessage = truncate(event.failureMessage(), transaction.getFailureMessageMaxLength());
+        }
+        return new TxMetricEvent(
+                event.transactionId(),
+                event.appName(),
+                event.environment(),
+                event.instanceId(),
+                truncate(event.transactionName(), 500),
+                event.durationUs(),
+                event.status(),
+                event.completedAt(),
+                event.threadName(),
+                truncate(event.failureType(), 200),
+                failureMessage,
+                truncate(event.traceId(), 64),
+                truncate(event.requestId(), 100));
     }
 
     private List<Object> captureAllowed(QueryMetricEvent event) {
@@ -92,6 +120,15 @@ public final class SanitizingMetricEventPublisher implements MetricEventPublishe
         String text = String.valueOf(value);
         int limit = Math.max(0, maxLength);
         return text.length() <= limit ? text : text.substring(0, limit);
+    }
+
+    private String truncate(String value, int maxLength) {
+        if (value == null) {
+            return null;
+        }
+        String singleLine = value.replace('\r', ' ').replace('\n', ' ');
+        int limit = Math.max(0, maxLength);
+        return singleLine.length() <= limit ? singleLine : singleLine.substring(0, limit);
     }
 
     @Override

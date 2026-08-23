@@ -44,8 +44,14 @@ public class QueryEchoSdkProperties {
     /** Collector 저장용 DataSource처럼 관찰하면 안 되는 빈 이름. */
     private List<String> excludedDataSourceBeans = new ArrayList<>();
 
+    /** 같은 JVM에 Collector가 있을 때 자기 저장 트랜잭션을 다시 계측하지 않을 패키지 접두어. */
+    private List<String> excludedTransactionPackages = new ArrayList<>();
+
     /** 바인딩 파라미터 수집은 기본적으로 꺼져 있고, fingerprint+index 허용 목록만 지원한다. */
     private final Params params = new Params();
+
+    /** 롤백 예외 메시지는 민감정보가 포함될 수 있어 기본적으로 Collector에 보내지 않는다. */
+    private final Transaction transaction = new Transaction();
 
     /**
      * 수집한 이벤트를 어디로 내보낼지 결정하는 부분
@@ -105,6 +111,12 @@ public class QueryEchoSdkProperties {
         private boolean enabled = false;
         private int maxTextLength = 100;
         private List<ParamRule> rules = new ArrayList<>();
+    }
+
+    @Data
+    public static class Transaction {
+        private boolean failureMessageEnabled = false;
+        private int failureMessageMaxLength = 1_000;
     }
 
     @Data

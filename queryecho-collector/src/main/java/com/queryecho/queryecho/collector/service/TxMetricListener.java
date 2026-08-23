@@ -1,7 +1,6 @@
 package com.queryecho.queryecho.collector.service;
 
-import com.queryecho.queryecho.collector.repository.TxMetricRecord;
-import com.queryecho.queryecho.collector.repository.TxMetricRepository;
+import com.queryecho.queryecho.collector.persistence.service.TransactionMetricPersistenceService;
 import com.queryecho.queryecho.sdk.dto.TxMetricEvent;
 import com.queryecho.queryecho.sdk.dto.TxStatus;
 import org.slf4j.Logger;
@@ -19,10 +18,10 @@ public class TxMetricListener {
 
     private static final Logger log = LoggerFactory.getLogger(TxMetricListener.class);
 
-    private final TxMetricRepository repository;
+    private final TransactionMetricPersistenceService persistenceService;
 
-    public TxMetricListener(TxMetricRepository repository) {
-        this.repository = repository;
+    public TxMetricListener(TransactionMetricPersistenceService persistenceService) {
+        this.persistenceService = persistenceService;
     }
 
     @Async
@@ -30,15 +29,9 @@ public class TxMetricListener {
     public void onTxMetric(TxMetricEvent event) {
         if (event.status() == TxStatus.ROLLBACK) {
             log.warn("[QueryEcho] Transaction rolled back ({}): {} - {}",
-                    DurationFormat.toMillisText(event.durationUs()),
-                    event.transactionName(), event.failureReason());
+                    DurationFormat.toMillisText(event.durationUs()), event.transactionName(),
+                    event.failureType());
         }
-        repository.save(new TxMetricRecord(
-                event.transactionName(),
-                event.durationUs(),
-                event.status(),
-                event.executedAt(),
-                event.threadName(),
-                event.failureReason()));
+        persistenceService.save(event);
     }
 }

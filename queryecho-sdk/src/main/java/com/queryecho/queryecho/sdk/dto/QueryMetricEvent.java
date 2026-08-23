@@ -20,6 +20,7 @@ import java.util.UUID;
  */
 public record QueryMetricEvent(
         UUID eventId, // 재전송되어도 Collector에서 중복 저장되지 않게 하는 실행 고유 ID
+        UUID transactionId, // 트랜잭션 안에서 실행됐다면 TxMetricEvent.transactionId, 아니면 null
         String appName,
         String environment,
         String instanceId,

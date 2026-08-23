@@ -973,9 +973,10 @@ tbody tr:hover td { background: rgba(255,255,255,.025); }
     host.appendChild(table(
       [{ label: "시각", cls: "t" }, { label: "결과" }, { label: "소요시간", cls: "num" }, { label: "트랜잭션" }, { label: "실패 사유" }],
       txs.map(function (t) {
-        var ok = t.status === "COMMIT";
+        var ok = t.status === "COMMIT", unknown = t.status === "UNKNOWN";
         return [{ text: fmtClock(t.executedAt), cls: "t" },
-                { node: statusPill(ok ? css("--status-good") : css("--status-critical"), ok ? "커밋" : "롤백") },
+                { node: statusPill(ok ? css("--status-good") : (unknown ? css("--text-muted") : css("--status-critical")),
+                                   ok ? "커밋" : (unknown ? "알 수 없음" : "롤백")) },
                 { text: fmtDur(t.durationUs), cls: "num" },
                 { text: t.transactionName, cls: "sql" },
                 { text: t.failureReason || "—", cls: t.failureReason ? null : "muted" }];

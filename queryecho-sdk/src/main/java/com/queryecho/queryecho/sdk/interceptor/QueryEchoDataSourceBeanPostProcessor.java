@@ -28,6 +28,7 @@ import org.springframework.core.Ordered;
  * queryecho.sdk.enabled=false 처리도 자동 구성의 @ConditionalOnProperty가 담당하므로,
  * 여기까지 왔다는 것은 이미 "켜진" 상태라는 뜻이다.
  */
+// BeanPostProcessor는 Spring이 생성하는 모든 Bean을 중간에서 확인할 수 있는 기능
 public class QueryEchoDataSourceBeanPostProcessor implements BeanPostProcessor, Ordered {
 
     // ObjectProvider로 지연 조회하는 이유는 자동 구성 클래스의 @Bean 메서드 주석 참고

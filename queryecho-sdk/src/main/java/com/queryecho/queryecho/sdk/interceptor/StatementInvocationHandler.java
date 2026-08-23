@@ -3,6 +3,7 @@ package com.queryecho.queryecho.sdk.interceptor;
 import com.queryecho.queryecho.sdk.util.SqlNormalizer;
 import com.queryecho.queryecho.sdk.dto.QueryMetricEvent;
 import com.queryecho.queryecho.sdk.publisher.MetricEventPublisher;
+import com.queryecho.queryecho.sdk.transaction.TransactionContext;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -119,6 +120,7 @@ class StatementInvocationHandler implements InvocationHandler {
             List<Object> params = snapshotParams();
             publisher.publish(new QueryMetricEvent(
                     UUID.randomUUID(),
+                    TransactionContext.currentId(),
                     source.appName(),
                     source.environment(),
                     source.instanceId(),
