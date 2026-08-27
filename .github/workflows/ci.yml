@@ -11,6 +11,20 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17.4-alpine
+        env:
+          POSTGRES_DB: queryecho
+          POSTGRES_USER: queryecho
+          POSTGRES_PASSWORD: queryecho
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U queryecho -d queryecho"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -24,4 +38,3 @@ jobs:
         run: ./gradlew :queryecho-sdk:publishToMavenLocal -PVERSION_NAME=0.1.0-SNAPSHOT --no-daemon
       - name: Build server image
         run: docker build -t queryecho-app:ci .
-

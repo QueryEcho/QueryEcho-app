@@ -1,6 +1,7 @@
 .git
 .github
 .gradle
+.gradle-user-home
 **/.gradle
 **/build
 **/out
@@ -10,4 +11,3 @@
 .env
 docker-compose*.yml
 HELP.md
-
