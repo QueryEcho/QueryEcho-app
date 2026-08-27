@@ -17,7 +17,7 @@ import org.springframework.core.annotation.Order;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
-/** @Transactional 메서드가 참여한 실제 물리 트랜잭션의 완료 결과를 수집한다. */
+/** {@code @Transactional} 메서드가 참여한 실제 물리 트랜잭션의 완료 결과를 수집한다. */
 @Aspect
 @Order(200)
 public class TransactionMetricsAspect {

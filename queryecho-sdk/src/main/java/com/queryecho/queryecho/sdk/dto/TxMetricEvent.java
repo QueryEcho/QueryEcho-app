@@ -4,7 +4,7 @@ import java.time.Instant;
 import java.util.UUID;
 
 /**
- * @Transactional 메서드 1회 호출(정확히는 물리 트랜잭션 1개)에 대해, 트랜잭션이 실제로
+ * {@code @Transactional} 메서드 1회 호출(정확히는 물리 트랜잭션 1개)에 대해, 트랜잭션이 실제로
  * 시작된 시점부터 커밋/롤백될 때까지의 결과를 담는 원시 신호.
  *
  * failureReason을 TxStatus와 별개 필드로 둔 이유:
