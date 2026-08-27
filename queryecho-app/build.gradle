@@ -10,6 +10,7 @@ dependencies {
 
     // demo 패키지(DemoController 등)가 REST 컨트롤러를 직접 정의하므로 web 스타터가 필요
     implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
     // 이 프로토타입이 관찰 대상으로 삼는 데모 DB(H2) 연결용
     implementation 'org.springframework.boot:spring-boot-starter-data-jdbc'
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'

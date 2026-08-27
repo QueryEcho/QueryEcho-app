@@ -2,11 +2,7 @@
 // 만드는 'org.springframework.boot' 플러그인은 일부러 적용하지 않는다. 'java-library'만으로
 // 충분하고, 버전 관리(BOM)는 루트 build.gradle의 subprojects 블록에서 이미 받고 있다.
 apply plugin: 'java-library'
-// 완전히 별도 프로젝트(다른 settings.gradle)에서 이 SDK를 라이브러리로 끌어다 쓰려면
-// project(':queryecho-sdk') 문법을 쓸 수 없다 - 그건 같은 멀티모듈 빌드 안에서만 통한다.
-// 대신 로컬 Maven 저장소(~/.m2)에 publish해두면, 별도 프로젝트에서
-// mavenLocal() + 'com.queryecho:queryecho-sdk:...' 좌표로 정상적으로 받아갈 수 있다.
-apply plugin: 'maven-publish'
+apply plugin: 'com.vanniktech.maven.publish'
 
 // 다른 모듈과 달리 여기서는 버전을 명시한다. io.spring.dependency-management(Spring BOM)가
 // 관리해주는 버전은 이 레포 안에서만 유효한 "관리된 버전"이라서, 이 jar를 완전히 별도인
@@ -30,14 +26,39 @@ dependencies {
     implementation 'tools.jackson.core:jackson-databind:3.1.4'
 }
 
-publishing {
-    publications {
-        maven(MavenPublication) {
-            // components.java: java-library 플러그인이 만든 jar + 의존성 정보(POM)를 그대로 publish.
-            // groupId/artifactId/version은 루트 build.gradle의 subprojects 블록에서 이미
-            // group='com.queryecho', version='0.0.1-SNAPSHOT'으로 정해져 있고, artifactId는
-            // 모듈 폴더명(queryecho-sdk)을 기본값으로 그대로 쓴다.
-            from components.java
+def sdkVersion = providers.gradleProperty('VERSION_NAME').orElse('0.1.0-SNAPSHOT').get()
+
+group = 'io.github.queryecho'
+version = sdkVersion
+
+mavenPublishing {
+    publishToMavenCentral()
+    coordinates('io.github.queryecho', 'queryecho-sdk', sdkVersion)
+
+    pom {
+        name = 'QueryEcho SDK'
+        description = 'Lightweight JDBC and Spring transaction telemetry SDK for QueryEcho.'
+        inceptionYear = '2026'
+        url = 'https://github.com/QueryEcho/QueryEcho-app'
+
+        licenses {
+            license {
+                name = 'The Apache License, Version 2.0'
+                url = 'https://www.apache.org/licenses/LICENSE-2.0.txt'
+                distribution = 'https://www.apache.org/licenses/LICENSE-2.0.txt'
+            }
+        }
+        developers {
+            developer {
+                id = 'queryecho'
+                name = 'QueryEcho maintainers'
+                url = 'https://github.com/QueryEcho'
+            }
+        }
+        scm {
+            url = 'https://github.com/QueryEcho/QueryEcho-app'
+            connection = 'scm:git:git://github.com/QueryEcho/QueryEcho-app.git'
+            developerConnection = 'scm:git:ssh://git@github.com/QueryEcho/QueryEcho-app.git'
         }
     }
 }

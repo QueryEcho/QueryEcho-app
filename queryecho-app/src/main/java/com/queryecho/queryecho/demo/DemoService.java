@@ -2,6 +2,7 @@ package com.queryecho.queryecho.demo;
 
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
  *    전부 재현할 수 있어야 이 프로토타입을 처음 받는 사람이 5분 안에 "동작하는 걸" 볼 수 있다.
  */
 @Service
+@ConditionalOnProperty(prefix = "queryecho.demo", name = "enabled", havingValue = "true", matchIfMissing = true)
 public class DemoService {
 
     private final JdbcTemplate jdbcTemplate;

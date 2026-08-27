@@ -14,6 +14,9 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties(prefix = "queryecho.collector")
 public class QueryEchoCollectorProperties {
 
+    /** 원격 SDK 수집 요청에 요구할 Bearer 키. 비어 있으면 로컬 개발 호환을 위해 인증하지 않는다. */
+    private String ingestApiKey = "";
+
     /** 이 값(ms) 이상 걸린 쿼리는 슬로우 쿼리로 분류된다. */
     private long slowQueryThresholdMs = 500;
 

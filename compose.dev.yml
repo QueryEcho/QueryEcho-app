@@ -1,0 +1,7 @@
+services:
+  queryecho:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: queryecho-app:local
+

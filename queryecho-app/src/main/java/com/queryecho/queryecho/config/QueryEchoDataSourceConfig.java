@@ -3,6 +3,7 @@ package com.queryecho.queryecho.config;
 import javax.sql.DataSource;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
@@ -24,6 +25,7 @@ public class QueryEchoDataSourceConfig {
     }
 
     @Bean(name = "demoDataSource")
+    @ConditionalOnProperty(prefix = "queryecho.demo", name = "enabled", havingValue = "true", matchIfMissing = true)
     public DataSource demoDataSource(
             @Value("${queryecho.demo.datasource.url}") String url,
             @Value("${queryecho.demo.datasource.driver-class-name}") String driverClassName,
@@ -33,6 +35,7 @@ public class QueryEchoDataSourceConfig {
     }
 
     @Bean
+    @ConditionalOnProperty(prefix = "queryecho.demo", name = "enabled", havingValue = "true", matchIfMissing = true)
     public JdbcTemplate demoJdbcTemplate(@Qualifier("demoDataSource") DataSource dataSource) {
         return new JdbcTemplate(dataSource);
     }

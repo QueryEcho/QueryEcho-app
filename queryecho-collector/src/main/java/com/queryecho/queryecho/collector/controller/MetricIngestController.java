@@ -1,9 +1,12 @@
 package com.queryecho.queryecho.collector.controller;
 
 import com.queryecho.queryecho.collector.dto.IngestResponse;
+import com.queryecho.queryecho.collector.config.QueryEchoCollectorProperties;
 import com.queryecho.queryecho.sdk.dto.QueryMetricEvent;
 import com.queryecho.queryecho.sdk.dto.TxMetricEvent;
 import java.util.List;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
@@ -11,6 +14,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -53,19 +57,47 @@ public class MetricIngestController {
     private static final int MAX_EVENTS_PER_REQUEST = 5_000;
 
     private final ApplicationEventPublisher applicationEventPublisher;
+    private final QueryEchoCollectorProperties properties;
 
-    public MetricIngestController(ApplicationEventPublisher applicationEventPublisher) {
+    public MetricIngestController(
+            ApplicationEventPublisher applicationEventPublisher,
+            QueryEchoCollectorProperties properties) {
         this.applicationEventPublisher = applicationEventPublisher;
+        this.properties = properties;
     }
 
     @PostMapping("/queries")
-    public ResponseEntity<IngestResponse> ingestQueries(@RequestBody List<QueryMetricEvent> events) {
+    public ResponseEntity<IngestResponse> ingestQueries(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @RequestBody List<QueryMetricEvent> events) {
+        if (!isAuthorized(authorization)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new IngestResponse(0));
+        }
         return accept(events, "queries");
     }
 
     @PostMapping("/transactions")
-    public ResponseEntity<IngestResponse> ingestTransactions(@RequestBody List<TxMetricEvent> events) {
+    public ResponseEntity<IngestResponse> ingestTransactions(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @RequestBody List<TxMetricEvent> events) {
+        if (!isAuthorized(authorization)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new IngestResponse(0));
+        }
         return accept(events, "transactions");
+    }
+
+    private boolean isAuthorized(String authorization) {
+        String expectedKey = properties.getIngestApiKey();
+        if (expectedKey == null || expectedKey.isBlank()) {
+            return true;
+        }
+        String expected = "Bearer " + expectedKey;
+        if (authorization == null) {
+            return false;
+        }
+        return MessageDigest.isEqual(
+                expected.getBytes(StandardCharsets.UTF_8),
+                authorization.getBytes(StandardCharsets.UTF_8));
     }
 
     private ResponseEntity<IngestResponse> accept(List<?> events, String kind) {

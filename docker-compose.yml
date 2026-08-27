@@ -1,22 +1,43 @@
 services:
   postgres:
-    image: postgres:17.4
-    container_name: queryecho-postgres
+    image: postgres:17.4-alpine
     restart: unless-stopped
     environment:
       POSTGRES_DB: queryecho
       POSTGRES_USER: queryecho
-      POSTGRES_PASSWORD: queryecho
+      POSTGRES_PASSWORD: ${QUERYECHO_DB_PASSWORD:?Set QUERYECHO_DB_PASSWORD in .env}
     ports:
-      - "5433:5432"
+      - "127.0.0.1:${QUERYECHO_POSTGRES_PORT:-5433}:5432"
     volumes:
       - queryecho-postgres-data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U queryecho -d queryecho"]
       interval: 5s
       timeout: 5s
-      retries: 10
+      retries: 15
       start_period: 10s
+
+  queryecho:
+    image: ${QUERYECHO_IMAGE:-ghcr.io/queryecho/queryecho-app}:${QUERYECHO_VERSION:-latest}
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      QUERYECHO_DB_URL: jdbc:postgresql://postgres:5432/queryecho
+      QUERYECHO_DB_USERNAME: queryecho
+      QUERYECHO_DB_PASSWORD: ${QUERYECHO_DB_PASSWORD:?Set QUERYECHO_DB_PASSWORD in .env}
+      QUERYECHO_INGEST_API_KEY: ${QUERYECHO_INGEST_API_KEY:?Set QUERYECHO_INGEST_API_KEY in .env}
+      QUERYECHO_DEMO_ENABLED: "false"
+      QUERYECHO_SDK_ENABLED: "false"
+    ports:
+      - "${QUERYECHO_PORT:-8080}:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:8080/actuator/health | grep -q '\"status\":\"UP\"'"]
+      interval: 15s
+      timeout: 5s
+      start_period: 30s
+      retries: 5
 
 volumes:
   queryecho-postgres-data:

@@ -75,6 +75,7 @@ public class HttpMetricEventPublisher implements MetricEventPublisher, AutoClose
     private final URI transactionsEndpoint;
     private final int batchSize;
     private final Duration requestTimeout;
+    private final String apiKey;
     private final AtomicLong droppedEvents = new AtomicLong();
 
     public HttpMetricEventPublisher(QueryEchoSdkProperties properties) {
@@ -82,6 +83,7 @@ public class HttpMetricEventPublisher implements MetricEventPublisher, AutoClose
         this.queue = new ArrayBlockingQueue<>(buffer.getCapacity());
         this.batchSize = buffer.getBatchSize();
         this.requestTimeout = Duration.ofMillis(buffer.getRequestTimeoutMs());
+        this.apiKey = properties.getApiKey();
 
         String baseUrl = stripTrailingSlash(properties.getCollectorUrl());
         this.queriesEndpoint = URI.create(baseUrl + "/api/v1/ingest/queries");
@@ -202,11 +204,14 @@ public class HttpMetricEventPublisher implements MetricEventPublisher, AutoClose
             return;
         }
 
-        HttpRequest request = HttpRequest.newBuilder(endpoint)
+        HttpRequest.Builder requestBuilder = HttpRequest.newBuilder(endpoint)
                 .header("Content-Type", "application/json; charset=utf-8")
                 .timeout(requestTimeout)
-                .POST(HttpRequest.BodyPublishers.ofString(json, StandardCharsets.UTF_8))
-                .build();
+                .POST(HttpRequest.BodyPublishers.ofString(json, StandardCharsets.UTF_8));
+        if (apiKey != null && !apiKey.isBlank()) {
+            requestBuilder.header("Authorization", "Bearer " + apiKey);
+        }
+        HttpRequest request = requestBuilder.build();
 
         try {
             // BodyHandlers.discarding(): 응답 본문은 필요 없다. 상태 코드만 보면 되므로

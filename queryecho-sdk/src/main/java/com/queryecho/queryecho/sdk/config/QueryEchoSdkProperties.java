@@ -64,6 +64,9 @@ public class QueryEchoSdkProperties {
     /** transport=HTTP일 때 지표를 보낼 Collector 서버의 베이스 URL. */
     private String collectorUrl = "http://localhost:8080";
 
+    /** Collector 수집 API의 Bearer 인증 키. 비어 있으면 인증 헤더를 보내지 않는다. */
+    private String apiKey = "";
+
     private final Buffer buffer = new Buffer();
 
     public enum Transport {
