@@ -35,6 +35,11 @@ public record QueryMetricEvent(
         Instant executedAt, // 실행 시각
         String threadName, // 실행 스레드 이름
         boolean succeeded,
-        String sqlState
+        String sqlState,
+        String traceId,
+        String requestId,
+        String httpMethod,
+        String httpPath,
+        String handlerName
 ) {
 }

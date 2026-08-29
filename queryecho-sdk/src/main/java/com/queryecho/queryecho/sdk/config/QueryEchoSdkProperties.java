@@ -102,6 +102,9 @@ public class QueryEchoSdkProperties {
         /** 큐를 비워 전송하는 주기(ms). */
         private long flushIntervalMs = 1000;
 
+        /** SDK 큐·전송·유실 누적 상태를 Collector에 보고하는 주기(ms). */
+        private long healthReportIntervalMs = 10_000;
+
         /**
          * 전송 요청 하나의 타임아웃(ms).
          * Collector가 응답하지 않을 때 전송 스레드가 무한정 붙잡히지 않도록 반드시 필요하다.

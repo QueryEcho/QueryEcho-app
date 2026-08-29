@@ -3,6 +3,7 @@ package com.queryecho.queryecho.collector.service;
 import com.queryecho.queryecho.collector.persistence.service.TransactionMetricPersistenceService;
 import com.queryecho.queryecho.sdk.dto.TxMetricEvent;
 import com.queryecho.queryecho.sdk.dto.TxStatus;
+import com.queryecho.queryecho.collector.telemetry.CollectionTelemetryService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.event.EventListener;
@@ -19,9 +20,12 @@ public class TxMetricListener {
     private static final Logger log = LoggerFactory.getLogger(TxMetricListener.class);
 
     private final TransactionMetricPersistenceService persistenceService;
+    private final CollectionTelemetryService telemetry;
 
-    public TxMetricListener(TransactionMetricPersistenceService persistenceService) {
+    public TxMetricListener(TransactionMetricPersistenceService persistenceService,
+                            CollectionTelemetryService telemetry) {
         this.persistenceService = persistenceService;
+        this.telemetry = telemetry;
     }
 
     @Async
@@ -32,6 +36,11 @@ public class TxMetricListener {
                     DurationFormat.toMillisText(event.durationUs()), event.transactionName(),
                     event.failureType());
         }
-        persistenceService.save(event);
+        try {
+            telemetry.recordPersisted(event, persistenceService.save(event));
+        } catch (RuntimeException ex) {
+            telemetry.recordPersistenceFailure(event);
+            throw ex;
+        }
     }
 }

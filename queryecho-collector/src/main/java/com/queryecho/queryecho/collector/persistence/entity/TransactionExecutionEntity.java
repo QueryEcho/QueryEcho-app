@@ -56,6 +56,15 @@ public class TransactionExecutionEntity {
     @Column(name = "request_id", length = 100)
     private String requestId;
 
+    @Column(name = "http_method", length = 10)
+    private String httpMethod;
+
+    @Column(name = "http_path", length = 500)
+    private String httpPath;
+
+    @Column(name = "handler_name", length = 500)
+    private String handlerName;
+
     @Column(name = "ingested_at", nullable = false)
     private Instant ingestedAt;
 
@@ -66,7 +75,8 @@ public class TransactionExecutionEntity {
                                       String environment, String instanceId, Instant completedAt,
                                       long durationUs, TxStatus status, String threadName,
                                       String failureType, String failureMessage, String traceId,
-                                      String requestId, Instant ingestedAt) {
+                                      String requestId, String httpMethod, String httpPath,
+                                      String handlerName, Instant ingestedAt) {
         this.transactionId = transactionId;
         this.pattern = pattern;
         this.environment = environment;
@@ -79,6 +89,9 @@ public class TransactionExecutionEntity {
         this.failureMessage = failureMessage;
         this.traceId = traceId;
         this.requestId = requestId;
+        this.httpMethod = httpMethod;
+        this.httpPath = httpPath;
+        this.handlerName = handlerName;
         this.ingestedAt = ingestedAt;
     }
 
@@ -94,5 +107,8 @@ public class TransactionExecutionEntity {
     public String getFailureMessage() { return failureMessage; }
     public String getTraceId() { return traceId; }
     public String getRequestId() { return requestId; }
+    public String getHttpMethod() { return httpMethod; }
+    public String getHttpPath() { return httpPath; }
+    public String getHandlerName() { return handlerName; }
     public Instant getIngestedAt() { return ingestedAt; }
 }

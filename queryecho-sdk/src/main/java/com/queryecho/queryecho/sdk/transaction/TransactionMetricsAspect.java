@@ -4,6 +4,7 @@ import com.queryecho.queryecho.sdk.config.QueryEchoSdkProperties;
 import com.queryecho.queryecho.sdk.dto.TxMetricEvent;
 import com.queryecho.queryecho.sdk.dto.TxStatus;
 import com.queryecho.queryecho.sdk.publisher.MetricEventPublisher;
+import com.queryecho.queryecho.sdk.web.HttpRequestContext;
 import java.time.Instant;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -61,12 +62,13 @@ public class TransactionMetricsAspect {
         long startNanos = System.nanoTime();
         String transactionName = joinPoint.getSignature().toLongString();
         AtomicReference<Failure> failure = new AtomicReference<>();
+        HttpRequestContext.Snapshot request = HttpRequestContext.current();
 
         TransactionContext.push(transactionId);
         try {
             TransactionSynchronizationManager.registerSynchronization(
                     new QueryEchoTransactionSynchronization(
-                            transactionId, transactionName, startNanos, failure));
+                            transactionId, transactionName, startNanos, failure, request));
         } catch (RuntimeException ex) {
             TransactionContext.remove(transactionId);
             throw ex;
@@ -95,15 +97,18 @@ public class TransactionMetricsAspect {
         private final String transactionName;
         private final long startNanos;
         private final AtomicReference<Failure> failure;
+        private final HttpRequestContext.Snapshot request;
 
         private QueryEchoTransactionSynchronization(UUID transactionId,
                                                     String transactionName,
                                                     long startNanos,
-                                                    AtomicReference<Failure> failure) {
+                                                    AtomicReference<Failure> failure,
+                                                    HttpRequestContext.Snapshot request) {
             this.transactionId = transactionId;
             this.transactionName = transactionName;
             this.startNanos = startNanos;
             this.failure = failure;
+            this.request = request;
         }
 
         @Override
@@ -127,8 +132,11 @@ public class TransactionMetricsAspect {
                         Thread.currentThread().getName(),
                         cause == null ? null : cause.type(),
                         cause == null ? null : cause.message(),
-                        null,
-                        null));
+                        request == null ? null : request.traceId(),
+                        request == null ? null : request.requestId(),
+                        request == null ? null : request.httpMethod(),
+                        request == null ? null : request.httpPath(),
+                        request == null ? null : request.handlerName()));
             } finally {
                 TransactionContext.remove(transactionId);
             }

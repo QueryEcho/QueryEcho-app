@@ -2,6 +2,7 @@ package com.queryecho.queryecho.sdk.publisher;
 
 import com.queryecho.queryecho.sdk.config.QueryEchoSdkProperties;
 import com.queryecho.queryecho.sdk.dto.QueryMetricEvent;
+import com.queryecho.queryecho.sdk.dto.SdkHealthReport;
 import com.queryecho.queryecho.sdk.dto.TxMetricEvent;
 import java.io.IOException;
 import java.net.URI;
@@ -10,6 +11,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -18,6 +20,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import tools.jackson.databind.ObjectMapper;
@@ -73,9 +76,23 @@ public class HttpMetricEventPublisher implements MetricEventPublisher, AutoClose
     private final ObjectMapper objectMapper;
     private final URI queriesEndpoint;
     private final URI transactionsEndpoint;
+    private final URI healthEndpoint;
     private final int batchSize;
     private final Duration requestTimeout;
     private final String apiKey;
+    private final String appName;
+    private final String environment;
+    private final String instanceId;
+    private final int queueCapacity;
+    private final long healthReportIntervalNanos;
+    private final AtomicLong nextHealthReportNanos;
+    private final AtomicLong capturedTotal = new AtomicLong();
+    private final AtomicLong enqueuedTotal = new AtomicLong();
+    private final AtomicLong sentTotal = new AtomicLong();
+    private final AtomicLong droppedBufferTotal = new AtomicLong();
+    private final AtomicLong droppedSerializationTotal = new AtomicLong();
+    private final AtomicLong droppedTransportTotal = new AtomicLong();
+    private final AtomicReference<Instant> lastSuccessfulSendAt = new AtomicReference<>();
     private final AtomicLong droppedEvents = new AtomicLong();
 
     public HttpMetricEventPublisher(QueryEchoSdkProperties properties) {
@@ -84,10 +101,18 @@ public class HttpMetricEventPublisher implements MetricEventPublisher, AutoClose
         this.batchSize = buffer.getBatchSize();
         this.requestTimeout = Duration.ofMillis(buffer.getRequestTimeoutMs());
         this.apiKey = properties.getApiKey();
+        this.appName = properties.getAppName();
+        this.environment = properties.getEnvironment();
+        this.instanceId = properties.getInstanceId();
+        this.queueCapacity = buffer.getCapacity();
+        this.healthReportIntervalNanos = TimeUnit.MILLISECONDS.toNanos(
+                Math.max(1_000, buffer.getHealthReportIntervalMs()));
+        this.nextHealthReportNanos = new AtomicLong(System.nanoTime() + healthReportIntervalNanos);
 
         String baseUrl = stripTrailingSlash(properties.getCollectorUrl());
         this.queriesEndpoint = URI.create(baseUrl + "/api/v1/ingest/queries");
         this.transactionsEndpoint = URI.create(baseUrl + "/api/v1/ingest/transactions");
+        this.healthEndpoint = URI.create(baseUrl + "/api/v1/ingest/sdk-health");
 
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(this.requestTimeout)
@@ -131,10 +156,14 @@ public class HttpMetricEventPublisher implements MetricEventPublisher, AutoClose
 
     @Override
     public void publish(Object event) {
+        capturedTotal.incrementAndGet();
         // offer()는 큐가 가득 차 있으면 곧바로 false를 리턴한다(블로킹하지 않는다).
         // 이 한 줄이 "모니터링이 애플리케이션을 멈추지 않는다"는 보장의 핵심이다.
         if (!queue.offer(event)) {
+            droppedBufferTotal.incrementAndGet();
             droppedEvents.incrementAndGet();
+        } else {
+            enqueuedTotal.incrementAndGet();
         }
     }
 
@@ -164,6 +193,7 @@ public class HttpMetricEventPublisher implements MetricEventPublisher, AutoClose
             sendBatch(batch);
         }
         reportDroppedIfAny();
+        sendHealthIfDue();
     }
 
     /**
@@ -199,6 +229,7 @@ public class HttpMetricEventPublisher implements MetricEventPublisher, AutoClose
             json = objectMapper.writeValueAsString(payload);
         } catch (Exception ex) {
             // 직렬화 실패는 재시도해도 결과가 같으므로 곧바로 버린다.
+            droppedSerializationTotal.addAndGet(payload.size());
             droppedEvents.addAndGet(payload.size());
             log.warn("[QueryEcho] Failed to serialize {} metric events, dropping them", payload.size(), ex);
             return;
@@ -218,17 +249,71 @@ public class HttpMetricEventPublisher implements MetricEventPublisher, AutoClose
             // 본문을 메모리에 읽어들이지 않아 불필요한 할당을 피한다.
             HttpResponse<Void> response = httpClient.send(request, HttpResponse.BodyHandlers.discarding());
             if (response.statusCode() / 100 != 2) {
+                droppedTransportTotal.addAndGet(payload.size());
                 droppedEvents.addAndGet(payload.size());
                 log.warn("[QueryEcho] Collector responded {} for {} events, dropping them",
                         response.statusCode(), payload.size());
+            } else {
+                sentTotal.addAndGet(payload.size());
+                lastSuccessfulSendAt.set(Instant.now());
             }
         } catch (IOException ex) {
+            droppedTransportTotal.addAndGet(payload.size());
             droppedEvents.addAndGet(payload.size());
             log.warn("[QueryEcho] Failed to send {} events to {}: {}", payload.size(), endpoint, ex.toString());
         } catch (InterruptedException ex) {
             // 인터럽트를 삼키면 종료 신호가 사라지므로 반드시 플래그를 복원한다.
             Thread.currentThread().interrupt();
+            droppedTransportTotal.addAndGet(payload.size());
             droppedEvents.addAndGet(payload.size());
+        }
+    }
+
+    private void sendHealthIfDue() {
+        long now = System.nanoTime();
+        long next = nextHealthReportNanos.get();
+        if (now < next || !nextHealthReportNanos.compareAndSet(next, now + healthReportIntervalNanos)) {
+            return;
+        }
+        sendHealthReport();
+    }
+
+    private void sendHealthReport() {
+        SdkHealthReport report = new SdkHealthReport(
+                appName,
+                environment,
+                instanceId,
+                Instant.now(),
+                capturedTotal.get(),
+                enqueuedTotal.get(),
+                sentTotal.get(),
+                droppedBufferTotal.get(),
+                droppedSerializationTotal.get(),
+                droppedTransportTotal.get(),
+                queue.size(),
+                queueCapacity,
+                lastSuccessfulSendAt.get());
+
+        try {
+            String json = objectMapper.writeValueAsString(report);
+            HttpRequest.Builder requestBuilder = HttpRequest.newBuilder(healthEndpoint)
+                    .header("Content-Type", "application/json; charset=utf-8")
+                    .timeout(requestTimeout)
+                    .POST(HttpRequest.BodyPublishers.ofString(json, StandardCharsets.UTF_8));
+            if (apiKey != null && !apiKey.isBlank()) {
+                requestBuilder.header("Authorization", "Bearer " + apiKey);
+            }
+            HttpResponse<Void> response = httpClient.send(
+                    requestBuilder.build(), HttpResponse.BodyHandlers.discarding());
+            if (response.statusCode() / 100 == 2) {
+                lastSuccessfulSendAt.set(Instant.now());
+            } else {
+                log.debug("[QueryEcho] SDK health report was rejected with status {}", response.statusCode());
+            }
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+        } catch (Exception ex) {
+            log.debug("[QueryEcho] Failed to send SDK health report: {}", ex.toString());
         }
     }
 
@@ -263,6 +348,7 @@ public class HttpMetricEventPublisher implements MetricEventPublisher, AutoClose
             scheduler.shutdownNow();
         }
         flushQuietly();
+        sendHealthReport();
         log.info("[QueryEcho] SDK HTTP transport stopped");
     }
 

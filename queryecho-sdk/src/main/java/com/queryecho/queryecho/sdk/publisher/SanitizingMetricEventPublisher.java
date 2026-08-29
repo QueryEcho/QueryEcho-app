@@ -54,7 +54,12 @@ public final class SanitizingMetricEventPublisher implements MetricEventPublishe
                 event.executedAt(),
                 event.threadName(),
                 event.succeeded(),
-                event.sqlState());
+                event.sqlState(),
+                truncate(event.traceId(), 64),
+                truncate(event.requestId(), 100),
+                truncate(event.httpMethod(), 10),
+                truncate(event.httpPath(), 500),
+                truncate(event.handlerName(), 500));
     }
 
     private TxMetricEvent sanitize(TxMetricEvent event) {
@@ -76,7 +81,10 @@ public final class SanitizingMetricEventPublisher implements MetricEventPublishe
                 truncate(event.failureType(), 200),
                 failureMessage,
                 truncate(event.traceId(), 64),
-                truncate(event.requestId(), 100));
+                truncate(event.requestId(), 100),
+                truncate(event.httpMethod(), 10),
+                truncate(event.httpPath(), 500),
+                truncate(event.handlerName(), 500));
     }
 
     private List<Object> captureAllowed(QueryMetricEvent event) {

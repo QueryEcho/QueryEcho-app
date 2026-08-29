@@ -24,6 +24,12 @@ dependencies {
     // JSON만큼은 직접 문자열을 조립하면 이스케이프 처리에서 버그가 나기 쉬워 Jackson을 쓴다.
     // Spring Boot 4.x는 Jackson 3(tools.jackson)을 기본으로 쓰므로 여기서도 3.x를 맞춘다.
     implementation 'tools.jackson.core:jackson-databind:3.1.4'
+    // Servlet 애플리케이션에서는 HTTP 요청 경로를 쿼리와 연결한다. 비웹 애플리케이션에
+    // MVC 런타임을 강제로 끌고 가지 않도록 컴파일 시에만 참조한다.
+    compileOnly 'org.springframework:spring-webmvc:7.0.8'
+    compileOnly 'jakarta.servlet:jakarta.servlet-api:6.1.0'
+    testImplementation 'org.springframework:spring-webmvc:7.0.8'
+    testImplementation 'jakarta.servlet:jakarta.servlet-api:6.1.0'
 }
 
 def sdkVersion = providers.gradleProperty('VERSION_NAME').orElse('0.1.0-SNAPSHOT').get()

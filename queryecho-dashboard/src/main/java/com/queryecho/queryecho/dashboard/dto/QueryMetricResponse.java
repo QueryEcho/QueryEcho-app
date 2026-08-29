@@ -29,7 +29,12 @@ public record QueryMetricResponse(
         boolean slow,
         int recentRepeatCount,
         boolean succeeded,
-        String sqlState
+        String sqlState,
+        String traceId,
+        String requestId,
+        String httpMethod,
+        String httpPath,
+        String handlerName
 ) {
     public static QueryMetricResponse from(QueryMetricRecord record) {
         return new QueryMetricResponse(
@@ -49,6 +54,11 @@ public record QueryMetricResponse(
                 record.slow(),
                 record.recentRepeatCount(),
                 record.succeeded(),
-                record.sqlState());
+                record.sqlState(),
+                record.traceId(),
+                record.requestId(),
+                record.httpMethod(),
+                record.httpPath(),
+                record.handlerName());
     }
 }

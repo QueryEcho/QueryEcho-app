@@ -3,7 +3,9 @@ package com.queryecho.queryecho.collector.controller;
 import com.queryecho.queryecho.collector.dto.IngestResponse;
 import com.queryecho.queryecho.collector.config.QueryEchoCollectorProperties;
 import com.queryecho.queryecho.sdk.dto.QueryMetricEvent;
+import com.queryecho.queryecho.sdk.dto.SdkHealthReport;
 import com.queryecho.queryecho.sdk.dto.TxMetricEvent;
+import com.queryecho.queryecho.collector.telemetry.CollectionTelemetryService;
 import java.util.List;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -58,12 +60,15 @@ public class MetricIngestController {
 
     private final ApplicationEventPublisher applicationEventPublisher;
     private final QueryEchoCollectorProperties properties;
+    private final CollectionTelemetryService telemetry;
 
     public MetricIngestController(
             ApplicationEventPublisher applicationEventPublisher,
-            QueryEchoCollectorProperties properties) {
+            QueryEchoCollectorProperties properties,
+            CollectionTelemetryService telemetry) {
         this.applicationEventPublisher = applicationEventPublisher;
         this.properties = properties;
+        this.telemetry = telemetry;
     }
 
     @PostMapping("/queries")
@@ -84,6 +89,17 @@ public class MetricIngestController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new IngestResponse(0));
         }
         return accept(events, "transactions");
+    }
+
+    @PostMapping("/sdk-health")
+    public ResponseEntity<IngestResponse> ingestSdkHealth(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @RequestBody SdkHealthReport report) {
+        if (!isAuthorized(authorization)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new IngestResponse(0));
+        }
+        telemetry.recordSdkHealth(report);
+        return ResponseEntity.accepted().body(new IngestResponse(1));
     }
 
     private boolean isAuthorized(String authorization) {
@@ -116,8 +132,18 @@ public class MetricIngestController {
                     .body(new IngestResponse(0));
         }
 
+        int accepted = 0;
         for (Object event : events) {
-            applicationEventPublisher.publishEvent(event);
+            try {
+                applicationEventPublisher.publishEvent(event);
+                telemetry.recordAccepted(event);
+                accepted++;
+            } catch (RuntimeException ex) {
+                telemetry.recordRejected(event);
+                log.warn("[QueryEcho] Collector async queue rejected a {} event", kind, ex);
+                return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                        .body(new IngestResponse(accepted));
+            }
         }
 
         log.debug("[QueryEcho] Ingested {} {} events", events.size(), kind);

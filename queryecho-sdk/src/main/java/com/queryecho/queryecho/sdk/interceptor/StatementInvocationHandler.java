@@ -4,6 +4,7 @@ import com.queryecho.queryecho.sdk.util.SqlNormalizer;
 import com.queryecho.queryecho.sdk.dto.QueryMetricEvent;
 import com.queryecho.queryecho.sdk.publisher.MetricEventPublisher;
 import com.queryecho.queryecho.sdk.transaction.TransactionContext;
+import com.queryecho.queryecho.sdk.web.HttpRequestContext;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -118,6 +119,7 @@ class StatementInvocationHandler implements InvocationHandler {
             //  - 표시 단위(ms)로의 변환은 값을 잃지 않는 방향이므로 대시보드 표시 계층에서 한다.
             long durationUs = (System.nanoTime() - start) / 1_000;
             List<Object> params = snapshotParams();
+            HttpRequestContext.Snapshot request = HttpRequestContext.current();
             publisher.publish(new QueryMetricEvent(
                     UUID.randomUUID(),
                     TransactionContext.currentId(),
@@ -134,7 +136,12 @@ class StatementInvocationHandler implements InvocationHandler {
                     Instant.now(),
                     Thread.currentThread().getName(),
                     succeeded,
-                    sqlState));
+                    sqlState,
+                    request == null ? null : request.traceId(),
+                    request == null ? null : request.requestId(),
+                    request == null ? null : request.httpMethod(),
+                    request == null ? null : request.httpPath(),
+                    request == null ? null : request.handlerName()));
         }
     }
 

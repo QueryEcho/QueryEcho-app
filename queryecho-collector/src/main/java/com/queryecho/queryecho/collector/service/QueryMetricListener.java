@@ -3,6 +3,7 @@ package com.queryecho.queryecho.collector.service;
 import com.queryecho.queryecho.collector.config.QueryEchoCollectorProperties;
 import com.queryecho.queryecho.collector.persistence.service.QueryMetricPersistenceService;
 import com.queryecho.queryecho.sdk.dto.QueryMetricEvent;
+import com.queryecho.queryecho.collector.telemetry.CollectionTelemetryService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.event.EventListener;
@@ -30,13 +31,16 @@ public class QueryMetricListener {
     private final QueryEchoCollectorProperties properties;
     private final RepeatedQueryDetectionService repeatedQueryDetectionService;
     private final QueryMetricPersistenceService persistenceService;
+    private final CollectionTelemetryService telemetry;
 
     public QueryMetricListener(QueryEchoCollectorProperties properties,
                                 RepeatedQueryDetectionService repeatedQueryDetectionService,
-                                QueryMetricPersistenceService persistenceService) {
+                                QueryMetricPersistenceService persistenceService,
+                                CollectionTelemetryService telemetry) {
         this.properties = properties;
         this.repeatedQueryDetectionService = repeatedQueryDetectionService;
         this.persistenceService = persistenceService;
+        this.telemetry = telemetry;
     }
 
     @Async
@@ -57,6 +61,11 @@ public class QueryMetricListener {
                     event.normalizedSql(), repeatCount, properties.getNPlusOne().getWindowMs(), event.threadName());
         }
 
-        persistenceService.save(event);
+        try {
+            telemetry.recordPersisted(event, persistenceService.save(event));
+        } catch (RuntimeException ex) {
+            telemetry.recordPersistenceFailure(event);
+            throw ex;
+        }
     }
 }

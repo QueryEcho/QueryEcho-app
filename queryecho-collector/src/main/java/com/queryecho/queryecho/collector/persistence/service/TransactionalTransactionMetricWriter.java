@@ -57,6 +57,9 @@ class TransactionalTransactionMetricWriter {
                 truncate(event.failureMessage(), 1_000),
                 truncate(event.traceId(), 64),
                 truncate(event.requestId(), 100),
+                truncate(event.httpMethod(), 10),
+                truncate(event.httpPath(), 500),
+                truncate(event.handlerName(), 500),
                 Instant.now()));
         return true;
     }

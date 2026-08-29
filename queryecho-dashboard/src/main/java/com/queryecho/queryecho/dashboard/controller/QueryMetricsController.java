@@ -2,6 +2,7 @@ package com.queryecho.queryecho.dashboard.controller;
 
 import com.queryecho.queryecho.collector.repository.QueryMetricRecord;
 import com.queryecho.queryecho.collector.repository.QueryMetricRepository;
+import com.queryecho.queryecho.collector.repository.QueryMetricFilter;
 import com.queryecho.queryecho.dashboard.dto.LatencyHeatmapResponse;
 import com.queryecho.queryecho.dashboard.dto.QueryMetricResponse;
 import com.queryecho.queryecho.collector.config.QueryEchoCollectorProperties;
@@ -34,13 +35,35 @@ public class QueryMetricsController {
     }
 
     @GetMapping
-    public List<QueryMetricResponse> recent(@RequestParam(defaultValue = "100") int limit) {
-        return repository.findRecent(limit).stream().map(QueryMetricResponse::from).toList();
+    public List<QueryMetricResponse> recent(
+            @RequestParam(defaultValue = "100") int limit,
+            @RequestParam(required = false) Instant from,
+            @RequestParam(required = false) Instant to,
+            @RequestParam(required = false) String environment,
+            @RequestParam(required = false) String appName,
+            @RequestParam(required = false) String instanceId,
+            @RequestParam(required = false) String datasourceName,
+            @RequestParam(required = false) Boolean succeeded) {
+        MetricTimeRange range = MetricTimeRange.resolve(from, to);
+        QueryMetricFilter filter = new QueryMetricFilter(range.from(), range.to(), environment,
+                appName, instanceId, datasourceName, succeeded);
+        return repository.findRecent(limit, filter).stream().map(QueryMetricResponse::from).toList();
     }
 
     @GetMapping("/slow")
-    public SlowQueryListResponse slow(@RequestParam(defaultValue = "100") int limit) {
-        List<QueryMetricResponse> items = repository.findSlow(limit).stream().map(QueryMetricResponse::from).toList();
+    public SlowQueryListResponse slow(
+            @RequestParam(defaultValue = "100") int limit,
+            @RequestParam(required = false) Instant from,
+            @RequestParam(required = false) Instant to,
+            @RequestParam(required = false) String environment,
+            @RequestParam(required = false) String appName,
+            @RequestParam(required = false) String instanceId,
+            @RequestParam(required = false) String datasourceName) {
+        MetricTimeRange range = MetricTimeRange.resolve(from, to);
+        QueryMetricFilter filter = new QueryMetricFilter(range.from(), range.to(), environment,
+                appName, instanceId, datasourceName, null);
+        List<QueryMetricResponse> items = repository.findSlow(limit, filter).stream()
+                .map(QueryMetricResponse::from).toList();
         return new SlowQueryListResponse(properties.slowQueryThresholdUs(), items.size(), items);
     }
 

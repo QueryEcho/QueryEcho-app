@@ -7,10 +7,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 /** 기존 대시보드 API 계약을 유지하면서 JPA 실행 저장소를 읽는 조회용 어댑터. */
 @Repository
+@Transactional(readOnly = true)
 public class QueryMetricRepository {
 
     private final QueryExecutionJpaRepository repository;
@@ -23,14 +27,29 @@ public class QueryMetricRepository {
     }
 
     public List<QueryMetricRecord> findRecent(int limit) {
-        return repository.findAllByOrderByExecutedAtDesc(page(limit)).stream()
+        return findRecent(limit, new QueryMetricFilter(null, null, null, null, null, null, null));
+    }
+
+    public List<QueryMetricRecord> findRecent(int limit, QueryMetricFilter filter) {
+        return repository.findAll(specification(filter), page(limit)).stream()
                 .map(this::toRecord)
                 .toList();
     }
 
     public List<QueryMetricRecord> findSlow(int limit) {
-        return repository.findByDurationUsGreaterThanEqualOrderByExecutedAtDesc(
-                        properties.slowQueryThresholdUs(), page(limit)).stream()
+        return findSlow(limit, new QueryMetricFilter(null, null, null, null, null, null, null));
+    }
+
+    public List<QueryMetricRecord> findSlow(int limit, QueryMetricFilter filter) {
+        Specification<QueryExecutionEntity> slow = (root, query, builder) ->
+                builder.greaterThanOrEqualTo(root.get("durationUs"), properties.slowQueryThresholdUs());
+        return repository.findAll(specification(filter).and(slow), page(limit)).stream()
+                .map(this::toRecord)
+                .toList();
+    }
+
+    public List<QueryMetricRecord> findRange(QueryMetricFilter filter) {
+        return repository.findAll(specification(filter), Sort.by(Sort.Direction.ASC, "executedAt")).stream()
                 .map(this::toRecord)
                 .toList();
     }
@@ -60,7 +79,12 @@ public class QueryMetricRepository {
                 entity.getDurationUs() >= properties.slowQueryThresholdUs(),
                 0,
                 entity.isSucceeded(),
-                entity.getSqlState());
+                entity.getSqlState(),
+                entity.getTraceId(),
+                entity.getRequestId(),
+                entity.getHttpMethod(),
+                entity.getHttpPath(),
+                entity.getHandlerName());
     }
 
     @SuppressWarnings("unchecked")
@@ -73,6 +97,43 @@ public class QueryMetricRepository {
 
     private PageRequest page(int requestedLimit) {
         int safeLimit = Math.max(1, Math.min(requestedLimit, 2_000));
-        return PageRequest.of(0, safeLimit);
+        return PageRequest.of(0, safeLimit, Sort.by(Sort.Direction.DESC, "executedAt"));
+    }
+
+    private Specification<QueryExecutionEntity> specification(QueryMetricFilter filter) {
+        Specification<QueryExecutionEntity> result = Specification.unrestricted();
+        if (filter.from() != null) {
+            result = result.and((root, query, builder) ->
+                    builder.greaterThanOrEqualTo(root.get("executedAt"), filter.from()));
+        }
+        if (filter.to() != null) {
+            result = result.and((root, query, builder) ->
+                    builder.lessThan(root.get("executedAt"), filter.to()));
+        }
+        if (hasText(filter.environment())) {
+            result = result.and((root, query, builder) ->
+                    builder.equal(root.get("environment"), filter.environment()));
+        }
+        if (hasText(filter.appName())) {
+            result = result.and((root, query, builder) ->
+                    builder.equal(root.get("appName"), filter.appName()));
+        }
+        if (hasText(filter.instanceId())) {
+            result = result.and((root, query, builder) ->
+                    builder.equal(root.get("instanceId"), filter.instanceId()));
+        }
+        if (hasText(filter.datasourceName())) {
+            result = result.and((root, query, builder) ->
+                    builder.equal(root.get("datasourceName"), filter.datasourceName()));
+        }
+        if (filter.succeeded() != null) {
+            result = result.and((root, query, builder) ->
+                    builder.equal(root.get("succeeded"), filter.succeeded()));
+        }
+        return result;
+    }
+
+    private static boolean hasText(String value) {
+        return value != null && !value.isBlank();
     }
 }

@@ -25,6 +25,9 @@ public record TxMetricEvent(
         String failureType, // ROLLBACK을 유발한 예외 클래스
         String failureMessage, // 보안 설정에서 허용한 경우에만 Collector까지 전달
         String traceId, // 추후 분산 추적 연동용
-        String requestId // 추후 QueryEcho 요청 경계 연동용
+        String requestId,
+        String httpMethod,
+        String httpPath,
+        String handlerName
 ) {
 }

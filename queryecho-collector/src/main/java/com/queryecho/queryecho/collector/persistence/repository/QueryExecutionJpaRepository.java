@@ -7,8 +7,10 @@ import java.util.UUID;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
-public interface QueryExecutionJpaRepository extends JpaRepository<QueryExecutionEntity, UUID> {
+public interface QueryExecutionJpaRepository
+        extends JpaRepository<QueryExecutionEntity, UUID>, JpaSpecificationExecutor<QueryExecutionEntity> {
 
     @EntityGraph(attributePaths = "pattern")
     List<QueryExecutionEntity> findAllByOrderByExecutedAtDesc(Pageable pageable);

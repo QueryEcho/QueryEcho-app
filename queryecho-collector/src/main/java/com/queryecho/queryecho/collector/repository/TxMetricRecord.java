@@ -17,7 +17,10 @@ public record TxMetricRecord(
         String failureType,
         String failureMessage,
         String traceId,
-        String requestId
+        String requestId,
+        String httpMethod,
+        String httpPath,
+        String handlerName
 ) {
     public String failureReason() {
         if (failureType == null) {

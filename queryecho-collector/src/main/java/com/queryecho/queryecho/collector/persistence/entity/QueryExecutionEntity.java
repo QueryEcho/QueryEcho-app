@@ -58,6 +58,21 @@ public class QueryExecutionEntity {
     @Column(name = "thread_name", length = 200)
     private String threadName;
 
+    @Column(name = "trace_id", length = 64)
+    private String traceId;
+
+    @Column(name = "request_id", length = 100)
+    private String requestId;
+
+    @Column(name = "http_method", length = 10)
+    private String httpMethod;
+
+    @Column(name = "http_path", length = 500)
+    private String httpPath;
+
+    @Column(name = "handler_name", length = 500)
+    private String handlerName;
+
     @Column(name = "param_count", nullable = false)
     private short paramCount;
 
@@ -72,7 +87,9 @@ public class QueryExecutionEntity {
                                 String environment, String appName, String instanceId,
                                 String datasourceName, QueryPatternEntity pattern,
                                 long durationUs, boolean succeeded, String sqlState,
-                                String threadName, short paramCount, Map<String, Object> params) {
+                                String threadName, String traceId, String requestId,
+                                String httpMethod, String httpPath, String handlerName,
+                                short paramCount, Map<String, Object> params) {
         this.eventId = eventId;
         this.transactionId = transactionId;
         this.executedAt = executedAt;
@@ -86,6 +103,11 @@ public class QueryExecutionEntity {
         this.succeeded = succeeded;
         this.sqlState = sqlState;
         this.threadName = threadName;
+        this.traceId = traceId;
+        this.requestId = requestId;
+        this.httpMethod = httpMethod;
+        this.httpPath = httpPath;
+        this.handlerName = handlerName;
         this.paramCount = paramCount;
         this.params = params;
     }
@@ -103,6 +125,11 @@ public class QueryExecutionEntity {
     public boolean isSucceeded() { return succeeded; }
     public String getSqlState() { return sqlState; }
     public String getThreadName() { return threadName; }
+    public String getTraceId() { return traceId; }
+    public String getRequestId() { return requestId; }
+    public String getHttpMethod() { return httpMethod; }
+    public String getHttpPath() { return httpPath; }
+    public String getHandlerName() { return handlerName; }
     public short getParamCount() { return paramCount; }
     public Map<String, Object> getParams() { return params; }
 }

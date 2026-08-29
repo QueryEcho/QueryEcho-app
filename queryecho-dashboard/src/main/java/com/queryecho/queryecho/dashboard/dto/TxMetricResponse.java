@@ -19,7 +19,10 @@ public record TxMetricResponse(
         String failureMessage,
         String failureReason,
         String traceId,
-        String requestId
+        String requestId,
+        String httpMethod,
+        String httpPath,
+        String handlerName
 ) {
     public static TxMetricResponse from(TxMetricRecord record) {
         return new TxMetricResponse(
@@ -36,6 +39,9 @@ public record TxMetricResponse(
                 record.failureMessage(),
                 record.failureReason(),
                 record.traceId(),
-                record.requestId());
+                record.requestId(),
+                record.httpMethod(),
+                record.httpPath(),
+                record.handlerName());
     }
 }

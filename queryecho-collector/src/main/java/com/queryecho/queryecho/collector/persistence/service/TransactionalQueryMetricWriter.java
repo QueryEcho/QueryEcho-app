@@ -65,6 +65,11 @@ class TransactionalQueryMetricWriter {
                 event.succeeded(),
                 truncate(event.sqlState(), 5),
                 truncate(event.threadName(), 200),
+                truncate(event.traceId(), 64),
+                truncate(event.requestId(), 100),
+                truncate(event.httpMethod(), 10),
+                truncate(event.httpPath(), 500),
+                truncate(event.handlerName(), 500),
                 (short) Math.min(Short.MAX_VALUE, Math.max(0, event.paramCount())),
                 params);
         executionRepository.save(execution);

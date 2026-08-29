@@ -22,7 +22,8 @@ class TransactionMetricsControllerTest {
         QueryMetricRecord query = new QueryMetricRecord(
                 UUID.randomUUID(), transactionId, "local", "orders", "instance-01", "main",
                 "select * from orders where id = ?", "select * from orders where id = ?",
-                List.of(), 1, 12_000, Instant.now(), "http-1", false, 0, true, null);
+                List.of(), 1, 12_000, Instant.now(), "http-1", false, 0, true, null,
+                null, "request-01", "GET", "/api/orders/{id}", "OrderController#get");
         when(queryRepository.findByTransactionId(transactionId)).thenReturn(List.of(query));
 
         var response = new TransactionMetricsController(txRepository, queryRepository).queries(transactionId);
@@ -30,6 +31,7 @@ class TransactionMetricsControllerTest {
         assertThat(response).singleElement().satisfies(item -> {
             assertThat(item.transactionId()).isEqualTo(transactionId);
             assertThat(item.normalizedSql()).contains("orders");
+            assertThat(item.httpPath()).isEqualTo("/api/orders/{id}");
         });
     }
 }

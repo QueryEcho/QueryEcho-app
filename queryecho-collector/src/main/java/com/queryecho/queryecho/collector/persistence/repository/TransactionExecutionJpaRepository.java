@@ -8,10 +8,12 @@ import java.util.UUID;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 
 public interface TransactionExecutionJpaRepository
-        extends JpaRepository<TransactionExecutionEntity, UUID> {
+        extends JpaRepository<TransactionExecutionEntity, UUID>,
+        JpaSpecificationExecutor<TransactionExecutionEntity> {
 
     @EntityGraph(attributePaths = "pattern")
     List<TransactionExecutionEntity> findAllByOrderByCompletedAtDesc(Pageable pageable);
