@@ -20,17 +20,81 @@ jobs:
           distribution: temurin
           java-version: "21"
       - uses: gradle/actions/setup-gradle@v4
+      - name: Prepare and validate signing key
+        shell: bash
+        env:
+          SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
+          SIGNING_KEY_BASE64: ${{ secrets.SIGNING_KEY_BASE64 }}
+          SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
+        run: |
+          set -euo pipefail
+
+          KEY_FILE="$RUNNER_TEMP/queryecho-signing-key.asc"
+
+          if [[ -n "${SIGNING_KEY_BASE64:-}" ]]; then
+            if ! printf '%s' "$SIGNING_KEY_BASE64" | tr -d '\r\n ' | base64 --decode > "$KEY_FILE"; then
+              echo "::error::SIGNING_KEY_BASE64 is not valid Base64. Re-register the exported private key."
+              exit 1
+            fi
+          elif [[ -n "${SIGNING_KEY:-}" ]]; then
+            printf '%s' "$SIGNING_KEY" | tr -d '\r' > "$KEY_FILE"
+          else
+            echo "::error::Add SIGNING_KEY_BASE64 (recommended) or SIGNING_KEY to the release environment."
+            exit 1
+          fi
+
+          if ! grep -q -- '-----BEGIN PGP PRIVATE KEY BLOCK-----' "$KEY_FILE" || \
+             ! grep -q -- '-----END PGP PRIVATE KEY BLOCK-----' "$KEY_FILE"; then
+            echo "::error::The signing secret is not an ASCII-armored PGP private key. A public key or key ID cannot be used."
+            exit 1
+          fi
+
+          GPG_HOME="$(mktemp -d)"
+          chmod 700 "$GPG_HOME"
+          trap 'rm -rf "$GPG_HOME"' EXIT
+          if ! GNUPGHOME="$GPG_HOME" gpg --batch --import "$KEY_FILE" >/dev/null 2>&1; then
+            echo "::error::The signing private key could not be parsed. Export and register it again."
+            exit 1
+          fi
+
+          SIGNING_TEST_FILE="$GPG_HOME/signing-test.txt"
+          printf 'QueryEcho release signing test' > "$SIGNING_TEST_FILE"
+          if ! GNUPGHOME="$GPG_HOME" gpg \
+            --batch \
+            --yes \
+            --pinentry-mode loopback \
+            --passphrase "${SIGNING_PASSWORD:-}" \
+            --detach-sign \
+            "$SIGNING_TEST_FILE" >/dev/null 2>&1; then
+            echo "::error::The private key could not sign with SIGNING_PASSWORD. Register the key's own GPG passphrase, not a Maven Central password."
+            exit 1
+          fi
+
+          chmod 600 "$KEY_FILE"
       - name: Test and publish SDK
+        shell: bash
         env:
           ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
           ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
-          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNING_KEY }}
           ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}
           ORG_GRADLE_PROJECT_signAllPublications: "true"
           ORG_GRADLE_PROJECT_mavenCentralAutomaticPublishing: "true"
         run: |
+          set -euo pipefail
+
+          if [[ -z "${ORG_GRADLE_PROJECT_mavenCentralUsername:-}" || \
+                -z "${ORG_GRADLE_PROJECT_mavenCentralPassword:-}" ]]; then
+            echo "::error::MAVEN_CENTRAL_USERNAME and MAVEN_CENTRAL_PASSWORD must be configured in the release environment."
+            exit 1
+          fi
+
+          export ORG_GRADLE_PROJECT_signingInMemoryKey="$(<"$RUNNER_TEMP/queryecho-signing-key.asc")"
           VERSION="${GITHUB_REF_NAME#v}"
           ./gradlew :queryecho-sdk:check :queryecho-sdk:publishToMavenCentral -PVERSION_NAME="$VERSION" --no-daemon
+      - name: Remove temporary signing key
+        if: always()
+        shell: bash
+        run: rm -f "$RUNNER_TEMP/queryecho-signing-key.asc"
 
   image:
     name: Publish server image to GHCR
