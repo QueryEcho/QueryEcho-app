@@ -1,7 +1,7 @@
 package com.queryecho.queryecho.collector.persistence.service;
 
-import com.queryecho.queryecho.sdk.dto.TxMetricEvent;
-import com.queryecho.queryecho.sdk.util.TransactionFingerprint;
+import com.queryecho.core.dto.TxMetricEvent;
+import com.queryecho.core.util.TransactionFingerprint;
 import org.springframework.stereotype.Service;
 
 /** 동일 패턴 최초 저장 경쟁을 고정 크기 striped lock으로 직렬화한다. */

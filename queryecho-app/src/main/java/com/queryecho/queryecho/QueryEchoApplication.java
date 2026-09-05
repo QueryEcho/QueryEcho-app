@@ -15,7 +15,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
  *    동작하지 않는다는 사실을 이 프로젝트 안에서는 영영 발견할 수 없다. 실제로 그렇게
  *    "우연히 동작하던" 상태였다.
  *  - 스캔에서 빼두면 이 애플리케이션도 외부 타깃 앱과 똑같이 자동 구성
- *    ({@link com.queryecho.queryecho.sdk.config.QueryEchoSdkAutoConfiguration})을 통해서만
+ *    ({@link com.queryecho.spring.boot4.QueryEchoAutoConfiguration})을 통해서만
  *    SDK를 켜게 된다. 즉 이 앱을 띄워보는 것 자체가 "라이브러리로 붙였을 때 잘 되는가"에 대한
  *    검증이 된다.
  *

@@ -1,7 +1,7 @@
 package com.queryecho.queryecho.collector.service;
 
 import com.queryecho.queryecho.collector.config.QueryEchoCollectorProperties;
-import com.queryecho.queryecho.sdk.dto.QueryMetricEvent;
+import com.queryecho.core.dto.QueryMetricEvent;
 import java.time.Instant;
 import java.util.Deque;
 import java.util.Map;

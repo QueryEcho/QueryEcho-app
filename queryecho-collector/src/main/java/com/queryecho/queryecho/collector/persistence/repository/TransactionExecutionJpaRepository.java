@@ -1,7 +1,7 @@
 package com.queryecho.queryecho.collector.persistence.repository;
 
 import com.queryecho.queryecho.collector.persistence.entity.TransactionExecutionEntity;
-import com.queryecho.queryecho.sdk.dto.TxStatus;
+import com.queryecho.core.dto.TxStatus;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;

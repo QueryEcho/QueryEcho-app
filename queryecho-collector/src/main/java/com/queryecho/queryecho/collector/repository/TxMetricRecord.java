@@ -1,6 +1,6 @@
 package com.queryecho.queryecho.collector.repository;
 
-import com.queryecho.queryecho.sdk.dto.TxStatus;
+import com.queryecho.core.dto.TxStatus;
 import java.time.Instant;
 import java.util.UUID;
 

@@ -2,7 +2,7 @@ package com.queryecho.queryecho.collector.repository;
 
 import com.queryecho.queryecho.collector.persistence.entity.TransactionExecutionEntity;
 import com.queryecho.queryecho.collector.persistence.repository.TransactionExecutionJpaRepository;
-import com.queryecho.queryecho.sdk.dto.TxStatus;
+import com.queryecho.core.dto.TxStatus;
 import java.util.List;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;

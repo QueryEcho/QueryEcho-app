@@ -1,7 +1,7 @@
 package com.queryecho.queryecho.dashboard.dto;
 
 import com.queryecho.queryecho.collector.repository.TxMetricRecord;
-import com.queryecho.queryecho.sdk.dto.TxStatus;
+import com.queryecho.core.dto.TxStatus;
 import java.time.Instant;
 import java.util.UUID;
 

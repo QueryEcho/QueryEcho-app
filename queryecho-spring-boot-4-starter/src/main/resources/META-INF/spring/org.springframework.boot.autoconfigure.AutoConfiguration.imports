@@ -1,0 +1,2 @@
+com.queryecho.spring.boot4.QueryEchoAutoConfiguration
+com.queryecho.spring.boot4.QueryEchoWebMvcAutoConfiguration

@@ -1,0 +1,12 @@
+apply plugin: 'java-library'
+
+dependencies {
+    api project(':queryecho-core')
+    api project(':queryecho-jdbc')
+    implementation project(':queryecho-http-transport')
+    testImplementation 'com.h2database:h2:2.3.232'
+}
+
+java {
+    withSourcesJar()
+}

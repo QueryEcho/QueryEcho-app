@@ -1,6 +1,6 @@
 package com.queryecho.queryecho.collector.persistence.entity;
 
-import com.queryecho.queryecho.sdk.dto.TxStatus;
+import com.queryecho.core.dto.TxStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;

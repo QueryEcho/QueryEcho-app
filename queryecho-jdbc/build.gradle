@@ -1,0 +1,9 @@
+apply plugin: 'java-library'
+
+dependencies {
+    api project(':queryecho-core')
+}
+
+java {
+    withSourcesJar()
+}

@@ -6,7 +6,7 @@ import com.queryecho.queryecho.collector.persistence.entity.TransactionRollup1mE
 import com.queryecho.queryecho.collector.persistence.entity.TransactionRollup1mId;
 import com.queryecho.queryecho.collector.persistence.repository.TransactionExecutionJpaRepository;
 import com.queryecho.queryecho.collector.persistence.repository.TransactionRollup1mJpaRepository;
-import com.queryecho.queryecho.sdk.dto.TxStatus;
+import com.queryecho.core.dto.TxStatus;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;

@@ -4,11 +4,16 @@
 
 Central Portal에서 `io.github.queryecho` namespace를 등록하고 GitHub 조직 소유권을 검증합니다. 조직 namespace는 개인 계정 namespace처럼 자동 검증되지 않을 수 있습니다.
 
-SDK의 공개 좌표는 다음과 같습니다.
+사용자가 선택하는 SDK 진입 모듈의 배포 예정 좌표는 다음과 같습니다.
 
 ```text
-io.github.queryecho:queryecho-sdk:<version>
+io.github.queryecho:queryecho-java-sdk:<version>
+io.github.queryecho:queryecho-spring-boot-3-starter:<version>
+io.github.queryecho:queryecho-spring-boot-4-starter:<version>
 ```
+
+하위 의존성인 `queryecho-core`, `queryecho-jdbc`, `queryecho-http-transport`까지
+같은 버전으로 총 여섯 모듈을 배포합니다. 로컬 배포 검증과 실제 Central 공개는 별개입니다.
 
 ## 2. Central Portal과 GPG 준비
 
@@ -58,7 +63,7 @@ ghcr.io/queryecho/queryecho-app
 
 ```bash
 ./gradlew test
-./gradlew :queryecho-sdk:publishToMavenLocal -PVERSION_NAME=0.1.0-SNAPSHOT
+./gradlew sdkPublishToMavenLocal -PVERSION_NAME=0.1.0-SNAPSHOT
 docker build -t queryecho-app:local .
 ```
 

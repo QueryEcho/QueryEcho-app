@@ -2,9 +2,9 @@ package com.queryecho.queryecho.collector.controller;
 
 import com.queryecho.queryecho.collector.dto.IngestResponse;
 import com.queryecho.queryecho.collector.config.QueryEchoCollectorProperties;
-import com.queryecho.queryecho.sdk.dto.QueryMetricEvent;
-import com.queryecho.queryecho.sdk.dto.SdkHealthReport;
-import com.queryecho.queryecho.sdk.dto.TxMetricEvent;
+import com.queryecho.core.dto.QueryMetricEvent;
+import com.queryecho.core.dto.SdkHealthReport;
+import com.queryecho.core.dto.TxMetricEvent;
 import com.queryecho.queryecho.collector.telemetry.CollectionTelemetryService;
 import java.util.List;
 import java.nio.charset.StandardCharsets;

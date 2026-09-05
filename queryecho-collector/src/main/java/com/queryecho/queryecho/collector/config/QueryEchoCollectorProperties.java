@@ -7,7 +7,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * collector가 원시 이벤트를 판단(슬로우쿼리/N+1 여부)할 때 쓰는 기준값.
  * {@code queryecho.collector.*} 접두어에 바인딩된다.
  *
- * 분리 이유는 {@link com.queryecho.queryecho.sdk.config.QueryEchoSdkProperties}의 클래스
+ * 분리 이유는 {@link com.queryecho.core.config.SdkOptions}의 클래스
  * 주석 참고 - "SDK를 켤지"와 "판단 기준을 어디로 잡을지"는 서로 다른 모듈의 책임이다.
  */
 @Data

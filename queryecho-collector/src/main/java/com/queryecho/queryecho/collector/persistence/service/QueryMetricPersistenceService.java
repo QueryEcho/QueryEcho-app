@@ -1,7 +1,7 @@
 package com.queryecho.queryecho.collector.persistence.service;
 
-import com.queryecho.queryecho.sdk.dto.QueryMetricEvent;
-import com.queryecho.queryecho.sdk.util.QueryFingerprint;
+import com.queryecho.core.dto.QueryMetricEvent;
+import com.queryecho.core.util.QueryFingerprint;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import org.springframework.stereotype.Service;

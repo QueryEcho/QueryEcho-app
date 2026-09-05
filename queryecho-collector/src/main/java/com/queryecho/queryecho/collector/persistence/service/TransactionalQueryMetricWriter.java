@@ -4,8 +4,8 @@ import com.queryecho.queryecho.collector.persistence.entity.QueryExecutionEntity
 import com.queryecho.queryecho.collector.persistence.entity.QueryPatternEntity;
 import com.queryecho.queryecho.collector.persistence.repository.QueryExecutionJpaRepository;
 import com.queryecho.queryecho.collector.persistence.repository.QueryPatternJpaRepository;
-import com.queryecho.queryecho.sdk.dto.QueryMetricEvent;
-import com.queryecho.queryecho.sdk.util.QueryFingerprint;
+import com.queryecho.core.dto.QueryMetricEvent;
+import com.queryecho.core.util.QueryFingerprint;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Locale;

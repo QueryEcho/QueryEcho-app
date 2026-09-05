@@ -1,8 +1,8 @@
 package com.queryecho.queryecho.collector.telemetry;
 
-import com.queryecho.queryecho.sdk.dto.QueryMetricEvent;
-import com.queryecho.queryecho.sdk.dto.SdkHealthReport;
-import com.queryecho.queryecho.sdk.dto.TxMetricEvent;
+import com.queryecho.core.dto.QueryMetricEvent;
+import com.queryecho.core.dto.SdkHealthReport;
+import com.queryecho.core.dto.TxMetricEvent;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;

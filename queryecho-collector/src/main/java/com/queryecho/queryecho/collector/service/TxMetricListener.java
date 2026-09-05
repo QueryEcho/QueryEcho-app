@@ -1,8 +1,8 @@
 package com.queryecho.queryecho.collector.service;
 
 import com.queryecho.queryecho.collector.persistence.service.TransactionMetricPersistenceService;
-import com.queryecho.queryecho.sdk.dto.TxMetricEvent;
-import com.queryecho.queryecho.sdk.dto.TxStatus;
+import com.queryecho.core.dto.TxMetricEvent;
+import com.queryecho.core.dto.TxStatus;
 import com.queryecho.queryecho.collector.telemetry.CollectionTelemetryService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

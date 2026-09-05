@@ -10,7 +10,7 @@ import com.queryecho.queryecho.collector.repository.TxMetricRecord;
 import com.queryecho.queryecho.collector.repository.TxMetricRepository;
 import com.queryecho.queryecho.dashboard.dto.QuerySeriesResponse;
 import com.queryecho.queryecho.dashboard.dto.TransactionSeriesResponse;
-import com.queryecho.queryecho.sdk.dto.TxStatus;
+import com.queryecho.core.dto.TxStatus;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Map;

@@ -1,0 +1,11 @@
+apply plugin: 'java-library'
+
+dependencies {
+    api project(':queryecho-core')
+    implementation 'org.slf4j:slf4j-api:2.0.17'
+    testImplementation 'com.fasterxml.jackson.core:jackson-databind:2.19.2'
+}
+
+java {
+    withSourcesJar()
+}

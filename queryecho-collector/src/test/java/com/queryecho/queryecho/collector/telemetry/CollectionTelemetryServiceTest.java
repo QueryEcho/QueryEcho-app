@@ -2,8 +2,8 @@ package com.queryecho.queryecho.collector.telemetry;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.queryecho.queryecho.sdk.dto.QueryMetricEvent;
-import com.queryecho.queryecho.sdk.dto.SdkHealthReport;
+import com.queryecho.core.dto.QueryMetricEvent;
+import com.queryecho.core.dto.SdkHealthReport;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;

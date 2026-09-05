@@ -2,9 +2,22 @@
 // bootJar/bootRun 태스크를 갖는다 - 나머지 모듈(sdk/collector/dashboard)은 라이브러리라서
 // 실행 가능한 fat jar가 필요 없다.
 apply plugin: 'org.springframework.boot'
+apply plugin: 'io.spring.dependency-management'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+dependencyManagement {
+    imports {
+        mavenBom "org.springframework.boot:spring-boot-dependencies:4.1.0"
+    }
+}
 
 dependencies {
-    implementation project(':queryecho-sdk')
+    implementation project(':queryecho-spring-boot-4-starter')
     implementation project(':queryecho-collector')
     implementation project(':queryecho-dashboard')
 

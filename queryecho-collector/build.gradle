@@ -1,10 +1,17 @@
 apply plugin: 'java-library'
+apply plugin: 'io.spring.dependency-management'
+
+dependencyManagement {
+    imports {
+        mavenBom "org.springframework.boot:spring-boot-dependencies:4.1.0"
+    }
+}
 
 dependencies {
     // collector가 리턴하는 TxMetricRecord가 sdk.dto.TxStatus를 그대로 노출하므로
     // implementation이 아니라 api로 선언 - 그래야 collector에 의존하는 모듈(dashboard 등)이
     // 별도로 queryecho-sdk를 직접 의존성에 추가하지 않아도 TxStatus 등을 컴파일 타임에 볼 수 있다.
-    api project(':queryecho-sdk')
+    api project(':queryecho-core')
     // 원격 SDK가 보내는 지표를 받는 수신 API(MetricIngestController)를 제공하므로 web이 필요하다.
     // collector가 "서버"가 되는 순간부터 이건 선택이 아니라 필수 의존성이다.
     implementation 'org.springframework.boot:spring-boot-starter-web'
@@ -14,4 +21,5 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-flyway'
     // Flyway 10+에서는 PostgreSQL 지원이 별도 모듈로 분리되어 있다.
     runtimeOnly 'org.flywaydb:flyway-database-postgresql'
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
 }

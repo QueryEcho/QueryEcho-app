@@ -2,7 +2,9 @@
 
 이 문서는 QueryEcho 서버와 대시보드를 Docker로 실행하고, Spring Boot 애플리케이션에 QueryEcho SDK를 적용하는 방법을 설명한다.
 
-현재 SDK의 기준 환경은 Java 21과 Spring Boot 4.1이다.
+서버는 Java 21 / Spring Boot 4.1을 사용한다. SDK는 Java 17·21에서 사용할 수 있으며,
+Spring Boot 3.5용과 4.1용 Starter를 분리했다. 순수 Java 사용법은
+[SDK 구조 가이드](SDK_ARCHITECTURE.md)를 참고한다.
 
 ## 저장소 준비
 
@@ -135,15 +137,18 @@ QueryEcho 서버 이미지는 Collector API와 대시보드를 함께 제공한�
 
 SDK는 Spring이 관리하는 `DataSource`를 프록시로 감싸 JDBC 쿼리 실행 시간을 측정한다. `@Transactional` 메서드의 완료 시점도 관찰해 커밋과 롤백 정보를 수집한다. 애플리케이션 코드를 직접 수정하지 않고 의존성과 설정을 추가하는 방식으로 적용한다.
 
-1. Gradle 프로젝트라면 `build.gradle`에 Maven Central과 SDK 의존성을 추가한다.
+1. 현재 분리된 SDK는 로컬에서 `./gradlew sdkPublishToMavenLocal`로 먼저 배포한다.
+   아래 예시는 Boot 4.1용이며, Boot 3.5라면 artifact 이름을 `queryecho-spring-boot-3-starter`로 바꾼다.
+   두 Starter를 동시에 추가하지 않는다.
 
     ```groovy
     repositories {
+        mavenLocal() // 위 명령으로 배포한 개발용 SDK
         mavenCentral()
     }
 
     dependencies {
-        implementation 'io.github.queryecho:queryecho-sdk:0.1.0'
+        implementation 'io.github.queryecho:queryecho-spring-boot-4-starter:0.1.0-SNAPSHOT'
     }
     ```
 
@@ -151,11 +156,12 @@ SDK는 Spring이 관리하는 `DataSource`를 프록시로 감싸 JDBC 쿼리 �
 
     ```kotlin
     repositories {
+        mavenLocal() // 위 명령으로 배포한 개발용 SDK
         mavenCentral()
     }
 
     dependencies {
-        implementation("io.github.queryecho:queryecho-sdk:0.1.0")
+        implementation("io.github.queryecho:queryecho-spring-boot-4-starter:0.1.0-SNAPSHOT")
     }
     ```
 
@@ -164,12 +170,13 @@ SDK는 Spring이 관리하는 `DataSource`를 프록시로 감싸 JDBC 쿼리 �
     ```xml
     <dependency>
         <groupId>io.github.queryecho</groupId>
-        <artifactId>queryecho-sdk</artifactId>
-        <version>0.1.0</version>
+        <artifactId>queryecho-spring-boot-4-starter</artifactId>
+        <version>0.1.0-SNAPSHOT</version>
     </dependency>
     ```
 
-   위 버전은 예시다. 실제로 Maven Central에 공개된 최신 안정 버전을 사용한다.
+   이 버전은 로컬 검증용이다. Maven Central에 새 모듈이 공개됐다는 의미는 아니다.
+   공개 배포 후에는 실제 릴리스 버전으로 바꾸고 Gradle의 `mavenLocal()`을 제거한다.
 
 1. 타깃 애플리케이션의 `application.properties`에 SDK 설정을 추가한다.
 
@@ -347,4 +354,3 @@ QUERYECHO_PORT=18080
 - `latest` 대신 `0.1.0`처럼 고정된 이미지 버전을 사용한다.
 - PostgreSQL 볼륨을 정기적으로 백업한다.
 - 수집 API 키는 환경별로 분리하고 주기적으로 교체한다.
-

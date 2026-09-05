@@ -4,9 +4,9 @@ import com.queryecho.queryecho.collector.persistence.entity.TransactionExecution
 import com.queryecho.queryecho.collector.persistence.entity.TransactionPatternEntity;
 import com.queryecho.queryecho.collector.persistence.repository.TransactionExecutionJpaRepository;
 import com.queryecho.queryecho.collector.persistence.repository.TransactionPatternJpaRepository;
-import com.queryecho.queryecho.sdk.dto.TxMetricEvent;
-import com.queryecho.queryecho.sdk.dto.TxStatus;
-import com.queryecho.queryecho.sdk.util.TransactionFingerprint;
+import com.queryecho.core.dto.TxMetricEvent;
+import com.queryecho.core.dto.TxStatus;
+import com.queryecho.core.util.TransactionFingerprint;
 import java.time.Instant;
 import java.util.UUID;
 import org.springframework.stereotype.Service;

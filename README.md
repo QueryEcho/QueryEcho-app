@@ -4,6 +4,8 @@ QueryEcho는 Java/Spring 애플리케이션의 JDBC 쿼리와 트랜잭션을 �
 
 처음 설치하는 사용자는 [QueryEcho 사용 가이드](docs/GETTING_STARTED.md)에서 Docker 서버 실행부터 Spring Boot SDK 적용까지 순서대로 확인할 수 있습니다.
 
+SDK 모듈 분리의 이유와 코드 읽는 순서는 [SDK 구조 이해 가이드](docs/SDK_ARCHITECTURE.md)를 참고하세요.
+
 ## 서버 실행
 
 Docker와 Docker Compose가 필요합니다.
@@ -28,11 +30,14 @@ Maven Central 배포 후 Spring Boot 애플리케이션에 다음 의존성을 �
 
 ```groovy
 dependencies {
-    implementation 'io.github.queryecho:queryecho-sdk:0.1.0'
+    implementation 'io.github.queryecho:queryecho-spring-boot-4-starter:0.1.0-SNAPSHOT'
 }
 ```
 
 타깃 애플리케이션에는 다음 설정을 추가합니다.
+
+Boot 3.5는 `queryecho-spring-boot-3-starter`, 순수 Java는 `queryecho-java-sdk`를 사용합니다.
+새 좌표는 로컬 배포로 검증하며 Maven Central 공개 배포는 별도입니다.
 
 ```properties
 queryecho.sdk.enabled=true
@@ -50,7 +55,7 @@ SDK는 DataSource와 Connection을 프록시로 감싸 JDBC 실행 시간을 측
 ## 배포 구조
 
 - 서버 이미지: `ghcr.io/queryecho/queryecho-app:<version>`
-- SDK: `io.github.queryecho:queryecho-sdk:<version>`
+- SDK: `io.github.queryecho:queryecho-java-sdk:<version>` 또는 Boot 버전별 Starter
 - `v0.1.0` 형식의 Git 태그를 푸시하면 GitHub Actions가 두 산출물을 각각 배포합니다.
 
 Maven Central 최초 배포에 필요한 계정·서명·GitHub Secret 설정은 [docs/PUBLISHING.md](docs/PUBLISHING.md)에 정리되어 있습니다.

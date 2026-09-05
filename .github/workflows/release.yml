@@ -90,7 +90,7 @@ jobs:
 
           export ORG_GRADLE_PROJECT_signingInMemoryKey="$(<"$RUNNER_TEMP/queryecho-signing-key.asc")"
           VERSION="${GITHUB_REF_NAME#v}"
-          ./gradlew :queryecho-sdk:check :queryecho-sdk:publishToMavenCentral -PVERSION_NAME="$VERSION" --no-daemon
+          ./gradlew sdkCheck sdkPublishToMavenCentral -PVERSION_NAME="$VERSION" --no-daemon
       - name: Remove temporary signing key
         if: always()
         shell: bash

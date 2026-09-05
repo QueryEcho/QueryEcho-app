@@ -2,7 +2,7 @@ package com.queryecho.queryecho.collector.service;
 
 import com.queryecho.queryecho.collector.config.QueryEchoCollectorProperties;
 import com.queryecho.queryecho.collector.persistence.service.QueryMetricPersistenceService;
-import com.queryecho.queryecho.sdk.dto.QueryMetricEvent;
+import com.queryecho.core.dto.QueryMetricEvent;
 import com.queryecho.queryecho.collector.telemetry.CollectionTelemetryService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

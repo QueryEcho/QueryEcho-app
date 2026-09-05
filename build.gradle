@@ -13,7 +13,6 @@ description = 'QueryEcho - DB Observability Platform'
 
 subprojects {
     apply plugin: 'java'
-    apply plugin: 'io.spring.dependency-management'
 
     group = 'com.queryecho'
     version = '0.0.1-SNAPSHOT'
@@ -35,28 +34,99 @@ subprojects {
     // queryecho-dashboard 같은 라이브러리 모듈은 이 옵션을 못 받아 파라미터 이름이
     // 바이트코드에서 사라진다. 그래서 모든 모듈에 직접 명시해준다.
     tasks.withType(JavaCompile).configureEach {
+        options.encoding = 'UTF-8'
         options.compilerArgs << '-parameters'
+        options.release = project.name in ['queryecho-app', 'queryecho-collector', 'queryecho-dashboard'] ? 21 : 17
     }
 
-    // Spring Boot BOM을 모든 모듈에 동일하게 적용해서, 각 모듈의 build.gradle에서
-    // Spring 계열 의존성 버전을 일일이 명시하지 않아도 되게 한다 (groupId:artifactId만 쓰면 됨).
-    dependencyManagement {
-        imports {
-            mavenBom "org.springframework.boot:spring-boot-dependencies:4.1.0"
-        }
+    tasks.withType(Javadoc).configureEach {
+        options.encoding = 'UTF-8'
+        options.charSet = 'UTF-8'
     }
 
-    // 모든 모듈에서 공통으로 쓰는 것들: Lombok, JUnit5 테스트 의존성.
+
+    // 공통 SDK는 Spring과 무관한 Java 17 바이트코드로 만든다. Spring 계열 모듈은
+    // 각 build.gradle에서 자신의 Boot BOM(3.5 또는 4.1)을 별도로 가져온다.
     dependencies {
-        compileOnly 'org.projectlombok:lombok'
-        annotationProcessor 'org.projectlombok:lombok'
-        testCompileOnly 'org.projectlombok:lombok'
-        testAnnotationProcessor 'org.projectlombok:lombok'
-        testImplementation 'org.springframework.boot:spring-boot-starter-test'
+        compileOnly 'org.projectlombok:lombok:1.18.38'
+        annotationProcessor 'org.projectlombok:lombok:1.18.38'
+        if (!(project.name in ['queryecho-app', 'queryecho-collector', 'queryecho-dashboard']) && !project.name.contains('starter')) {
+            testImplementation platform('org.junit:junit-bom:5.12.2')
+        }
+        testImplementation 'org.junit.jupiter:junit-jupiter'
         testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
     }
 
     tasks.named('test') {
         useJUnitPlatform()
+        if (providers.gradleProperty('testJavaVersion').isPresent() && !(project.name in ['queryecho-app', 'queryecho-collector', 'queryecho-dashboard'])) {
+            javaLauncher = javaToolchains.launcherFor {
+                languageVersion = JavaLanguageVersion.of(providers.gradleProperty('testJavaVersion').get().toInteger())
+            }
+        }
     }
 }
+
+def sdkModules = [
+    'queryecho-core', 'queryecho-jdbc', 'queryecho-http-transport', 'queryecho-java-sdk',
+    'queryecho-spring-boot-3-starter', 'queryecho-spring-boot-4-starter'
+]
+
+configure(sdkModules.collect { project(":" + it) }) {
+    apply plugin: 'java-library'
+    apply plugin: 'com.vanniktech.maven.publish'
+    group = 'io.github.queryecho'
+    version = providers.gradleProperty('VERSION_NAME').orElse('0.1.0-SNAPSHOT').get()
+    mavenPublishing {
+        publishToMavenCentral()
+        coordinates('io.github.queryecho', project.name, project.version.toString())
+        pom {
+            name = project.name
+            description = 'QueryEcho Java 17 SQL and transaction monitoring SDK module.'
+            url = 'https://github.com/QueryEcho/QueryEcho-app'
+            licenses {
+                license {
+                    name = 'The Apache License, Version 2.0'
+                    url = 'https://www.apache.org/licenses/LICENSE-2.0.txt'
+                    distribution = 'repo'
+                }
+            }
+            developers {
+                developer { id = 'queryecho'; name = 'QueryEcho maintainers' }
+            }
+            scm {
+                url = 'https://github.com/QueryEcho/QueryEcho-app'
+                connection = 'scm:git:https://github.com/QueryEcho/QueryEcho-app.git'
+                developerConnection = 'scm:git:ssh://git@github.com/QueryEcho/QueryEcho-app.git'
+            }
+        }
+    }
+}
+
+tasks.register('sdkCheck') { dependsOn sdkModules.collect { ":${it}:check" } }
+tasks.register('sdkPublishToMavenLocal') { dependsOn sdkModules.collect { ":${it}:publishToMavenLocal" } }
+tasks.register('sdkPublishToMavenCentral') { dependsOn sdkModules.collect { ":${it}:publishToMavenCentral" } }
+
+tasks.register('verifySdkBoundaries') {
+    dependsOn sdkModules.collect { ":${it}:classes" }
+    doLast {
+        sdkModules.each { moduleName ->
+            def module = project(":" + moduleName)
+            module.sourceSets.main.output.classesDirs.asFileTree.matching { include '**/*.class' }.each { file ->
+                file.withDataInputStream { input ->
+                    input.readInt(); input.readUnsignedShort()
+                    if (input.readUnsignedShort() > 61) throw new GradleException("Not Java 17 bytecode: ${file}")
+                }
+            }
+            if (!moduleName.contains('starter')) {
+                module.configurations.runtimeClasspath.resolvedConfiguration.resolvedArtifacts.each { artifact ->
+                    def group = artifact.moduleVersion.id.group
+                    if (group.startsWith('org.springframework') || group.startsWith('tools.jackson') || group.startsWith('com.fasterxml.jackson')) {
+                        throw new GradleException("Unexpected framework runtime dependency in ${moduleName}: ${artifact}")
+                    }
+                }
+            }
+        }
+    }
+}
+tasks.named('sdkCheck') { dependsOn 'verifySdkBoundaries' }
