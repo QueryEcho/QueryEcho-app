@@ -130,3 +130,21 @@ tasks.register('verifySdkBoundaries') {
     }
 }
 tasks.named('sdkCheck') { dependsOn 'verifySdkBoundaries' }
+
+// No credentials or remote writes: build the exact artifacts used for publishing.
+tasks.register('sdkPrepareRelease') {
+    group = 'publishing'
+    description = 'Test all SDK modules and generate publication artifacts without uploading.'
+    dependsOn 'sdkCheck'
+    dependsOn provider {
+        sdkModules.collectMany { name ->
+            def sdk = project(":" + name)
+            sdk.publishing.publications.withType(MavenPublication).collectMany { publication ->
+                def suffix = publication.name.capitalize() + 'Publication'
+                [publication.artifacts,
+                 sdk.tasks.named('generatePomFileFor' + suffix),
+                 sdk.tasks.named('generateMetadataFileFor' + suffix)]
+            }
+        }
+    }
+}
