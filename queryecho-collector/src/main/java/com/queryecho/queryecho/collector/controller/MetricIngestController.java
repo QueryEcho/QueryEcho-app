@@ -121,11 +121,14 @@ public class MetricIngestController {
             return ResponseEntity.ok(new IngestResponse(0));
         }
 
+        events.forEach(telemetry::recordReceived);
+
         // 크기 초과 시 "앞에서 N개만 처리하고 나머지는 조용히 버리기"를 하지 않는다.
         // 그렇게 하면 보내는 쪽은 성공(2xx)으로 알고 넘어가는데 실제로는 데이터가 사라져서,
         // 나중에 "지표가 왜 비어 있지?"를 추적할 방법이 없어진다.
         // 명시적으로 거절하면 SDK가 실패로 인식해 drop 로그를 남기므로 원인 추적이 가능하다.
         if (events.size() > MAX_EVENTS_PER_REQUEST) {
+            events.forEach(telemetry::recordRejected);
             log.warn("[QueryEcho] Rejected oversized {} ingest request: {} events (max {})",
                     kind, events.size(), MAX_EVENTS_PER_REQUEST);
             return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE)
@@ -133,13 +136,16 @@ public class MetricIngestController {
         }
 
         int accepted = 0;
-        for (Object event : events) {
+        for (int index = 0; index < events.size(); index++) {
+            Object event = events.get(index);
             try {
                 applicationEventPublisher.publishEvent(event);
                 telemetry.recordAccepted(event);
                 accepted++;
             } catch (RuntimeException ex) {
-                telemetry.recordRejected(event);
+                for (int rejectedIndex = index; rejectedIndex < events.size(); rejectedIndex++) {
+                    telemetry.recordRejected(events.get(rejectedIndex));
+                }
                 log.warn("[QueryEcho] Collector async queue rejected a {} event", kind, ex);
                 return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
                         .body(new IngestResponse(accepted));

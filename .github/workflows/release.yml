@@ -20,6 +20,9 @@ jobs:
           distribution: temurin
           java-version: "21"
       - uses: gradle/actions/setup-gradle@v4
+      - name: Verify SDK release artifacts before loading credentials
+        shell: bash
+        run: ./gradlew sdkPrepareRelease -PVERSION_NAME="${GITHUB_REF_NAME#v}" --no-daemon
       - name: Prepare and validate signing key
         shell: bash
         env:
@@ -90,7 +93,7 @@ jobs:
 
           export ORG_GRADLE_PROJECT_signingInMemoryKey="$(<"$RUNNER_TEMP/queryecho-signing-key.asc")"
           VERSION="${GITHUB_REF_NAME#v}"
-          ./gradlew sdkCheck sdkPublishToMavenCentral -PVERSION_NAME="$VERSION" --no-daemon
+          ./gradlew sdkPublishToMavenCentral -PVERSION_NAME="$VERSION" --no-daemon
       - name: Remove temporary signing key
         if: always()
         shell: bash

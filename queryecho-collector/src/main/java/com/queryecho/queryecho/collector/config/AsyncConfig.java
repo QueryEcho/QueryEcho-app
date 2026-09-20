@@ -1,7 +1,9 @@
 package com.queryecho.queryecho.collector.config;
 
+import com.queryecho.queryecho.collector.telemetry.CollectionTelemetryService;
 import java.util.concurrent.Executor;
 import org.springframework.aop.interceptor.AsyncUncaughtExceptionHandler;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.annotation.AsyncConfigurer;
 import org.springframework.scheduling.annotation.EnableAsync;
@@ -26,15 +28,28 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 @EnableScheduling
 public class AsyncConfig implements AsyncConfigurer {
 
-    @Override
-    public Executor getAsyncExecutor() {
+    private final CollectionTelemetryService telemetry;
+
+    public AsyncConfig(CollectionTelemetryService telemetry) {
+        this.telemetry = telemetry;
+    }
+
+    @Bean(name = "collectorTaskExecutor")
+    public ThreadPoolTaskExecutor collectorTaskExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
         executor.setCorePoolSize(2);
         executor.setMaxPoolSize(4);
         executor.setQueueCapacity(1000);
         executor.setThreadNamePrefix("queryecho-collector-");
+        executor.setTaskDecorator(telemetry::decorateAsyncTask);
         executor.initialize();
+        telemetry.bindExecutor(executor);
         return executor;
+    }
+
+    @Override
+    public Executor getAsyncExecutor() {
+        return collectorTaskExecutor();
     }
 
     @Override

@@ -36,11 +36,14 @@ public class TxMetricListener {
                     DurationFormat.toMillisText(event.durationUs()), event.transactionName(),
                     event.failureType());
         }
+        long persistenceStartedAt = System.nanoTime();
         try {
             telemetry.recordPersisted(event, persistenceService.save(event));
         } catch (RuntimeException ex) {
             telemetry.recordPersistenceFailure(event);
             throw ex;
+        } finally {
+            telemetry.recordTransactionPersistenceDuration(System.nanoTime() - persistenceStartedAt);
         }
     }
 }

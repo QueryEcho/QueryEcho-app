@@ -61,11 +61,14 @@ public class QueryMetricListener {
                     event.normalizedSql(), repeatCount, properties.getNPlusOne().getWindowMs(), event.threadName());
         }
 
+        long persistenceStartedAt = System.nanoTime();
         try {
             telemetry.recordPersisted(event, persistenceService.save(event));
         } catch (RuntimeException ex) {
             telemetry.recordPersistenceFailure(event);
             throw ex;
+        } finally {
+            telemetry.recordQueryPersistenceDuration(System.nanoTime() - persistenceStartedAt);
         }
     }
 }

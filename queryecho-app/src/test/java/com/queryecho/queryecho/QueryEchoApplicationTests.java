@@ -48,7 +48,14 @@ class QueryEchoApplicationTests {
                         .param("environment", "test")
                         .param("appName", "sample-app"))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.collectorReceivedTotal").value(0))
                 .andExpect(jsonPath("$.collectorAcceptedTotal").value(0))
+                .andExpect(jsonPath("$.collectorInFlight").value(0))
+                .andExpect(jsonPath("$.executor.queueCapacity").value(1000))
+                .andExpect(jsonPath("$.executor.maxWorkers").value(4))
+                .andExpect(jsonPath("$.queueWait.count").value(0))
+                .andExpect(jsonPath("$.persistence.query.count").value(0))
+                .andExpect(jsonPath("$.persistence.transaction.count").value(0))
                 .andExpect(jsonPath("$.instances").isArray());
     }
 
