@@ -5,7 +5,7 @@ import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
 
-/** SDK record DTO와 JSON 값만 지원한다. Jackson 버전과 무관한 wire encoder. */
+/** 외부 라이브러리 버전에 영향받지 않고 지표를 JSON으로 변환한다. */
 public final class JsonEventEncoder implements EventEncoder {
     @Override
     public String encode(Object value) throws ReflectiveOperationException {

@@ -50,9 +50,7 @@ public class TransactionMetricsAspect {
             return joinPoint.proceed();
         }
 
-        // REQUIRED 중첩 호출에서는 현재 물리 트랜잭션의 synchronization 목록에 이미
-        // QueryEcho marker가 있다. REQUIRES_NEW는 바깥 synchronization을 suspend하므로
-        // 새 목록에는 marker가 없고 별도 transactionId를 생성하게 된다.
+        // 동일 트랜잭션의 중복 계측을 막고 새 트랜잭션에는 별도 식별자를 부여한다.
         boolean alreadyTracking = TransactionSynchronizationManager.getSynchronizations().stream()
                 .anyMatch(QueryEchoTransactionSynchronization.class::isInstance);
         if (alreadyTracking) {

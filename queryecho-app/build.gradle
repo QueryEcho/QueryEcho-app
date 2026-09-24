@@ -1,6 +1,4 @@
-// 유일하게 실행 가능한 모듈. 여기서만 'org.springframework.boot' 플러그인을 적용해서
-// bootJar/bootRun 태스크를 갖는다 - 나머지 모듈(sdk/collector/dashboard)은 라이브러리라서
-// 실행 가능한 fat jar가 필요 없다.
+// Collector와 대시보드를 실행 가능한 애플리케이션으로 패키징한다.
 apply plugin: 'org.springframework.boot'
 apply plugin: 'io.spring.dependency-management'
 
@@ -21,15 +19,15 @@ dependencies {
     implementation project(':queryecho-collector')
     implementation project(':queryecho-dashboard')
 
-    // demo 패키지(DemoController 등)가 REST 컨트롤러를 직접 정의하므로 web 스타터가 필요
+    // 데모 REST API를 제공한다.
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
-    // 이 프로토타입이 관찰 대상으로 삼는 데모 DB(H2) 연결용
+    // 로컬 데모 데이터베이스에 연결한다.
     implementation 'org.springframework.boot:spring-boot-starter-data-jdbc'
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     runtimeOnly 'com.h2database:h2'
     runtimeOnly 'org.postgresql:postgresql'
-    // SDK를 거치지 않는 DBeaver/CLI 쿼리를 performance_schema에서 읽기 위한 대상 DB 드라이버.
+    // 외부에서 실행된 MySQL 쿼리를 성능 스키마로 수집한다.
     runtimeOnly 'com.mysql:mysql-connector-j'
     developmentOnly 'org.springframework.boot:spring-boot-devtools'
 

@@ -10,7 +10,7 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
-/** 기존 Dashboard API 계약을 유지하면서 PostgreSQL 트랜잭션 실행 테이블을 읽는다. */
+/** PostgreSQL에서 트랜잭션 실행 지표를 조회한다. */
 @Repository
 @Transactional(readOnly = true)
 public class TxMetricRepository {

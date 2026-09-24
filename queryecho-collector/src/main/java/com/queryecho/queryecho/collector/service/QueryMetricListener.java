@@ -12,19 +12,7 @@ import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
-/**
- * SDK가 발행한 원시 {@link QueryMetricEvent}를 받아 슬로우 쿼리 판정 + N+1 판정을 거쳐
- * 저장소에 쌓는 collector의 진입점.
- *
- * 왜 @Async인가?
- *  - 이 리스너는 실제 애플리케이션 스레드(HTTP 요청을 처리 중인 스레드)와 같은 스레드에서
- *    이벤트를 받는다(Spring 이벤트는 기본적으로 동기 호출). 만약 여기서 동기적으로
- *    분석/저장을 수행하면 "모니터링 오버헤드가 실제 요청 지연시간에 그대로 더해지는" 문제가
- *    생긴다. @Async로 별도 스레드 풀({@link com.queryecho.queryecho.collector.config.AsyncConfig})에
- *    위임하면 원래 요청은 쿼리가 끝나는 즉시 진행되고, 지표 가공은 백그라운드에서 처리된다.
- *  - 대가로 "쿼리 실행 시각"과 "지표가 저장소에 반영되는 시각" 사이에 약간의 지연이 생기지만,
- *    모니터링 도구 특성상 최신성보다 애플리케이션 성능에 대한 낮은 침습성이 더 중요하다고 판단했다.
- */
+/** 쿼리 지표를 비동기로 분석하고 배치 단위로 저장한다. */
 @Component
 public class QueryMetricListener {
 

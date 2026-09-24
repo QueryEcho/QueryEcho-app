@@ -8,18 +8,15 @@ dependencyManagement {
 }
 
 dependencies {
-    // collector가 리턴하는 TxMetricRecord가 sdk.dto.TxStatus를 그대로 노출하므로
-    // implementation이 아니라 api로 선언 - 그래야 collector에 의존하는 모듈(dashboard 등)이
-    // 별도로 queryecho-sdk를 직접 의존성에 추가하지 않아도 TxStatus 등을 컴파일 타임에 볼 수 있다.
+    // 대시보드가 Collector의 공통 지표 타입을 사용할 수 있도록 공개한다.
     api project(':queryecho-core')
-    // 원격 SDK가 보내는 지표를 받는 수신 API(MetricIngestController)를 제공하므로 web이 필요하다.
-    // collector가 "서버"가 되는 순간부터 이건 선택이 아니라 필수 의존성이다.
+    // 원격 SDK의 지표를 받는 수집 API를 제공한다.
     implementation 'org.springframework.boot:spring-boot-starter-web'
-    // 롤업 조회 repository를 dashboard 시계열 서비스가 사용하므로 공개 컴파일 타입으로 전달한다.
+    // 대시보드가 시계열 조회 저장소를 사용할 수 있도록 공개한다.
     api 'org.springframework.boot:spring-boot-starter-data-jpa'
-    // Spring Boot 4에서는 Flyway 자동 구성이 별도 starter로 분리되어 있다.
+    // 데이터베이스 스키마 변경을 자동 적용한다.
     implementation 'org.springframework.boot:spring-boot-starter-flyway'
-    // Flyway 10+에서는 PostgreSQL 지원이 별도 모듈로 분리되어 있다.
+    // PostgreSQL용 스키마 변경 기능을 제공한다.
     runtimeOnly 'org.flywaydb:flyway-database-postgresql'
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
 }

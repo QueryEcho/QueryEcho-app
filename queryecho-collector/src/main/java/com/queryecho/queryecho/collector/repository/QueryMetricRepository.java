@@ -12,7 +12,7 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
-/** 기존 대시보드 API 계약을 유지하면서 JPA 실행 저장소를 읽는 조회용 어댑터. */
+/** PostgreSQL에서 쿼리 실행 지표를 조회한다. */
 @Repository
 @Transactional(readOnly = true)
 public class QueryMetricRepository {

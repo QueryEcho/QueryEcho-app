@@ -22,10 +22,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-/**
- * MySQL performance_schema의 최근 statement 순환 버퍼를 읽는다.
- * SDK가 없는 DBeaver/CLI/다른 언어 클라이언트의 쿼리도 이 경로로 관찰된다.
- */
+/** MySQL 성능 스키마에서 SDK 밖에서 실행된 최근 쿼리까지 수집한다. */
 @Component
 @ConditionalOnProperty(prefix = "queryecho.db-collector.mysql", name = "enabled", havingValue = "true")
 public class MySqlPerformanceSchemaCollector implements DbServerQueryCollector {

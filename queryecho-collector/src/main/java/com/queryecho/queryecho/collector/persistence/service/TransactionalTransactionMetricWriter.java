@@ -39,7 +39,7 @@ class TransactionalTransactionMetricWriter {
         return writeBatch(List.of(event)).getFirst();
     }
 
-    /** 한 HTTP 배치의 중복·패턴을 일괄 조회하고 실행 엔티티를 JDBC batch 대상으로 등록한다. */
+    /** 한 배치의 중복·패턴을 일괄 조회하고 트랜잭션 실행 지표를 묶어 저장한다. */
     @Transactional
     public List<Boolean> writeBatch(List<TxMetricEvent> events) {
         if (events.isEmpty()) {

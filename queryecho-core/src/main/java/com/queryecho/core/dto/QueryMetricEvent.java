@@ -4,7 +4,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
-/** JDBC 실행 한 건을 Collector로 전달하는 버전 독립적인 wire contract. */
+/** JDBC 실행 한 건을 Collector로 전달하는 공통 전송 규격. */
 public record QueryMetricEvent(
         UUID eventId,
         UUID transactionId,

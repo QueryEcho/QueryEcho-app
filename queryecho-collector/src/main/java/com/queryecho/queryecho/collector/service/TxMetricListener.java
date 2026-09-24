@@ -12,10 +12,7 @@ import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
-/**
- * SDK가 발행한 {@link TxMetricEvent}를 저장소에 쌓는다.
- * @Async를 쓰는 이유는 {@link QueryMetricListener}와 동일 (요청 스레드 비침습).
- */
+/** 트랜잭션 지표를 비동기로 기록하고 배치 단위로 저장한다. */
 @Component
 public class TxMetricListener {
 

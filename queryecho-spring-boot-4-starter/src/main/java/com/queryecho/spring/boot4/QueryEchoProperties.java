@@ -1,7 +1,7 @@
 package com.queryecho.spring.boot4;
 import com.queryecho.core.config.SdkOptions;
 import org.springframework.boot.context.properties.ConfigurationProperties;
-/** 기존 queryecho.sdk.* 설정을 공통 Java 설정에 바인딩한다. */
+/** {@code queryecho.sdk.*} 설정을 SDK 공통 옵션에 연결한다. */
 @ConfigurationProperties(prefix = "queryecho.sdk")
 public class QueryEchoProperties extends SdkOptions {
 }

@@ -6,16 +6,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * QueryEcho 자체 기능이 아니라, 프로토타입이 실제로 잡아내는 모습을 눈으로 확인하기 위한
- * "부하 발생기"다. com.queryecho.queryecho.sdk/collector/dashboard 세 계층은 이 패키지가
- * 없어도 완전히 동작하며, 운영 배포 시에는 demo 패키지 전체를 삭제하면 된다
- * (README의 "다음 단계"에도 명시).
- *
- * 왜 H2를 감시 대상 DB로 같이 쓰는가?
- *  - 외부 DB 설치 없이 `./gradlew bootRun` 한 번으로 슬로우 쿼리/N+1/롤백 시나리오를
- *    전부 재현할 수 있어야 이 프로토타입을 처음 받는 사람이 5분 안에 "동작하는 걸" 볼 수 있다.
- */
+/** 쿼리 지연, 반복 조회, 롤백 상황을 재현하는 데모 기능. */
 @Service
 @ConditionalOnProperty(prefix = "queryecho.demo", name = "enabled", havingValue = "true", matchIfMissing = true)
 public class DemoService {
@@ -46,12 +37,7 @@ public class DemoService {
         jdbcTemplate.queryForObject("SELECT COUNT(*) FROM demo_item", Integer.class);
     }
 
-    /**
-     * 왜 Thread.sleep으로 흉내내지 않고 진짜로 무거운 쿼리를 실행하는가?
-     *  - Thread.sleep()은 애플리케이션 스레드를 멈출 뿐 실제 JDBC 실행 시간이 아니므로,
-     *    "인터셉터가 정말 DB 왕복 시간을 재고 있다"는 걸 증명하지 못한다.
-     *    H2의 SYSTEM_RANGE 테이블 함수로 대량의 행을 실제로 스캔시켜 진짜 느린 쿼리를 만든다.
-     */
+    /** 대량 행 조회로 느린 JDBC 실행을 재현한다. */
     @Transactional
     public void runSlowQuery() {
         jdbcTemplate.queryForObject(
@@ -59,9 +45,7 @@ public class DemoService {
                 Long.class);
     }
 
-    /**
-     * 반복문 안에서 개별 SELECT를 날려 전형적인 N+1 패턴을 재현한다.
-     */
+    /** 반복 개별 조회로 N+1 패턴을 재현한다. */
     @Transactional
     public void runNPlusOneQueries() {
         for (int i = 1; i <= 10; i++) {
@@ -70,10 +54,7 @@ public class DemoService {
         }
     }
 
-    /**
-     * 트랜잭션 롤백 시나리오 - insert 후 강제로 예외를 던져
-     * TransactionMetricsAspect가 ROLLBACK + failureReason을 기록하는지 확인한다.
-     */
+    /** 저장 후 예외를 발생시켜 트랜잭션 롤백 수집을 검증한다. */
     @Transactional
     public void runFailingTransaction() {
         jdbcTemplate.update("MERGE INTO demo_item (id, name) KEY (id) VALUES (?, ?)", 999, "will-be-rolled-back");
