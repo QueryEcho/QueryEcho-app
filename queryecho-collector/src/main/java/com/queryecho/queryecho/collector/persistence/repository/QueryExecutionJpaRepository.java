@@ -2,15 +2,22 @@ package com.queryecho.queryecho.collector.persistence.repository;
 
 import com.queryecho.queryecho.collector.persistence.entity.QueryExecutionEntity;
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 public interface QueryExecutionJpaRepository
         extends JpaRepository<QueryExecutionEntity, UUID>, JpaSpecificationExecutor<QueryExecutionEntity> {
+
+    @Query("select q.eventId from QueryExecutionEntity q where q.eventId in :ids")
+    Set<UUID> findExistingIds(@Param("ids") Collection<UUID> ids);
 
     @EntityGraph(attributePaths = "pattern")
     List<QueryExecutionEntity> findAllByOrderByExecutedAtDesc(Pageable pageable);

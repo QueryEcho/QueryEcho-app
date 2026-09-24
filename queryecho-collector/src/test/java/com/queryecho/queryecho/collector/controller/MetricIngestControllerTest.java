@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.queryecho.core.dto.QueryMetricEvent;
 import com.queryecho.queryecho.collector.config.QueryEchoCollectorProperties;
+import com.queryecho.queryecho.collector.event.QueryMetricBatch;
 import com.queryecho.queryecho.collector.telemetry.CollectionTelemetryService;
 import java.time.Instant;
 import java.util.List;
@@ -17,10 +18,10 @@ import org.springframework.core.task.TaskRejectedException;
 class MetricIngestControllerTest {
 
     @Test
-    void countsUnsubmittedTailAsRejectedWhenExecutorRejectsPartOfBatch() {
+    void rejectsWholeBatchWhenExecutorCannotAcceptBatchTask() {
         AtomicInteger submissions = new AtomicInteger();
         ApplicationEventPublisher publisher = event -> {
-            if (submissions.getAndIncrement() == 1) {
+            if (submissions.getAndIncrement() == 0) {
                 throw new TaskRejectedException("queue full");
             }
         };
@@ -33,11 +34,36 @@ class MetricIngestControllerTest {
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
         assertThat(response.getBody()).isNotNull();
-        assertThat(response.getBody().accepted()).isEqualTo(1);
+        assertThat(response.getBody().accepted()).isZero();
         assertThat(snapshot.collectorReceivedTotal()).isEqualTo(3);
-        assertThat(snapshot.collectorAcceptedTotal()).isEqualTo(1);
-        assertThat(snapshot.collectorRejectedTotal()).isEqualTo(2);
-        assertThat(snapshot.collectorInFlight()).isEqualTo(1);
+        assertThat(snapshot.collectorAcceptedTotal()).isZero();
+        assertThat(snapshot.collectorRejectedTotal()).isEqualTo(3);
+        assertThat(snapshot.collectorInFlight()).isZero();
+    }
+
+    @Test
+    void publishesOneAsyncTaskForAcceptedHttpBatch() {
+        AtomicInteger submissions = new AtomicInteger();
+        ApplicationEventPublisher publisher = event -> {
+            assertThat(event).isInstanceOf(QueryMetricBatch.class);
+            assertThat(((QueryMetricBatch) event).events()).hasSize(3);
+            submissions.incrementAndGet();
+        };
+        CollectionTelemetryService telemetry = new CollectionTelemetryService();
+        MetricIngestController controller = new MetricIngestController(
+                publisher, new QueryEchoCollectorProperties(), telemetry);
+
+        var response = controller.ingestQueries(null, List.of(event(), event(), event()));
+        var snapshot = telemetry.snapshot(null, null);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().accepted()).isEqualTo(3);
+        assertThat(submissions).hasValue(1);
+        assertThat(snapshot.collectorReceivedTotal()).isEqualTo(3);
+        assertThat(snapshot.collectorAcceptedTotal()).isEqualTo(3);
+        assertThat(snapshot.collectorRejectedTotal()).isZero();
+        assertThat(snapshot.collectorInFlight()).isEqualTo(3);
     }
 
     private static QueryMetricEvent event() {

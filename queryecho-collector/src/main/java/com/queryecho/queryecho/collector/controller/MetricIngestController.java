@@ -5,6 +5,8 @@ import com.queryecho.queryecho.collector.config.QueryEchoCollectorProperties;
 import com.queryecho.core.dto.QueryMetricEvent;
 import com.queryecho.core.dto.SdkHealthReport;
 import com.queryecho.core.dto.TxMetricEvent;
+import com.queryecho.queryecho.collector.event.QueryMetricBatch;
+import com.queryecho.queryecho.collector.event.TxMetricBatch;
 import com.queryecho.queryecho.collector.telemetry.CollectionTelemetryService;
 import java.util.List;
 import java.nio.charset.StandardCharsets;
@@ -25,11 +27,11 @@ import org.springframework.web.bind.annotation.RestController;
  * 이 컨트롤러가 생기면서 collector가 비로소 "라이브러리"가 아니라 "서버"가 된다.
  *
  * ── 핵심 설계: 받은 이벤트를 그대로 기존 리스너에게 다시 흘려보낸다 ──
- * 여기서 슬로우쿼리 판정이나 N+1 분석을 새로 구현하지 않는다. 받은 이벤트를
- * ApplicationEventPublisher로 다시 발행하기만 하면, 이미 존재하는
+ * 여기서 슬로우쿼리 판정이나 N+1 분석을 새로 구현하지 않는다. 로컬 모드는 단건 이벤트,
+ * HTTP 모드는 SDK가 만든 배치 이벤트를 ApplicationEventPublisher로 발행하며, 기존
  * {@link com.queryecho.queryecho.collector.service.QueryMetricListener}와
  * {@link com.queryecho.queryecho.collector.service.TxMetricListener}가
- * 그대로 받아서 처리한다.
+ * 동일한 분석 로직을 거친 뒤 단건 또는 batch DB 저장을 수행한다.
  *
  * 왜 이 방식인가?
  *  - LOCAL 모드(같은 JVM)와 HTTP 모드(원격)가 "이벤트가 발행된 이후"로는 완전히 동일한
@@ -78,7 +80,7 @@ public class MetricIngestController {
         if (!isAuthorized(authorization)) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new IngestResponse(0));
         }
-        return accept(events, "queries");
+        return accept(events, "queries", new QueryMetricBatch(events));
     }
 
     @PostMapping("/transactions")
@@ -88,7 +90,7 @@ public class MetricIngestController {
         if (!isAuthorized(authorization)) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new IngestResponse(0));
         }
-        return accept(events, "transactions");
+        return accept(events, "transactions", new TxMetricBatch(events));
     }
 
     @PostMapping("/sdk-health")
@@ -116,7 +118,7 @@ public class MetricIngestController {
                 authorization.getBytes(StandardCharsets.UTF_8));
     }
 
-    private ResponseEntity<IngestResponse> accept(List<?> events, String kind) {
+    private ResponseEntity<IngestResponse> accept(List<?> events, String kind, Object batchEvent) {
         if (events == null || events.isEmpty()) {
             return ResponseEntity.ok(new IngestResponse(0));
         }
@@ -135,21 +137,17 @@ public class MetricIngestController {
                     .body(new IngestResponse(0));
         }
 
-        int accepted = 0;
-        for (int index = 0; index < events.size(); index++) {
-            Object event = events.get(index);
-            try {
-                applicationEventPublisher.publishEvent(event);
-                telemetry.recordAccepted(event);
-                accepted++;
-            } catch (RuntimeException ex) {
-                for (int rejectedIndex = index; rejectedIndex < events.size(); rejectedIndex++) {
-                    telemetry.recordRejected(events.get(rejectedIndex));
-                }
-                log.warn("[QueryEcho] Collector async queue rejected a {} event", kind, ex);
-                return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-                        .body(new IngestResponse(accepted));
-            }
+        try {
+            // SDK가 이미 만든 HTTP 배치를 하나의 async task로 유지한다. 이벤트마다 task와
+            // DB transaction을 만들지 않으므로 큐 경쟁과 DB round trip을 함께 줄인다.
+            applicationEventPublisher.publishEvent(batchEvent);
+            events.forEach(telemetry::recordAccepted);
+        } catch (RuntimeException ex) {
+            events.forEach(telemetry::recordRejected);
+            log.warn("[QueryEcho] Collector async queue rejected a {} batch ({} events)",
+                    kind, events.size(), ex);
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                    .body(new IngestResponse(0));
         }
 
         log.debug("[QueryEcho] Ingested {} {} events", events.size(), kind);

@@ -37,9 +37,12 @@ public class AsyncConfig implements AsyncConfigurer {
     @Bean(name = "collectorTaskExecutor")
     public ThreadPoolTaskExecutor collectorTaskExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-        executor.setCorePoolSize(2);
-        executor.setMaxPoolSize(4);
-        executor.setQueueCapacity(1000);
+        // 25 API RPS가 약 56 metric EPS로 증폭되는 부하 테스트에서 core worker 2개가
+        // 큐를 먼저 채운 뒤에야 확장되어 이벤트가 거절됐다. 기본 처리량을 높이고,
+        // 작은 bounded queue가 max worker 확장을 더 일찍 유도하도록 조정한다.
+        executor.setCorePoolSize(4);
+        executor.setMaxPoolSize(8);
+        executor.setQueueCapacity(100);
         executor.setThreadNamePrefix("queryecho-collector-");
         executor.setTaskDecorator(telemetry::decorateAsyncTask);
         executor.initialize();

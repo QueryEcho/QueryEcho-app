@@ -1,13 +1,22 @@
 package com.queryecho.queryecho;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import tools.jackson.databind.ObjectMapper;
+import com.queryecho.core.dto.QueryMetricEvent;
+import com.queryecho.queryecho.collector.persistence.repository.QueryExecutionJpaRepository;
+import java.time.Instant;
+import java.util.List;
+import java.util.Set;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
 @SpringBootTest(properties = {
@@ -25,6 +34,12 @@ class QueryEchoApplicationTests {
 
     @Autowired
     private MockMvc mockMvc;
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    @Autowired
+    private QueryExecutionJpaRepository queryExecutionRepository;
 
     @Test
     void contextLoads() {
@@ -48,15 +63,45 @@ class QueryEchoApplicationTests {
                         .param("environment", "test")
                         .param("appName", "sample-app"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.collectorReceivedTotal").value(0))
-                .andExpect(jsonPath("$.collectorAcceptedTotal").value(0))
-                .andExpect(jsonPath("$.collectorInFlight").value(0))
-                .andExpect(jsonPath("$.executor.queueCapacity").value(1000))
-                .andExpect(jsonPath("$.executor.maxWorkers").value(4))
-                .andExpect(jsonPath("$.queueWait.count").value(0))
-                .andExpect(jsonPath("$.persistence.query.count").value(0))
-                .andExpect(jsonPath("$.persistence.transaction.count").value(0))
+                .andExpect(jsonPath("$.collectorReceivedTotal").isNumber())
+                .andExpect(jsonPath("$.collectorAcceptedTotal").isNumber())
+                .andExpect(jsonPath("$.collectorInFlight").isNumber())
+                .andExpect(jsonPath("$.executor.queueCapacity").value(100))
+                .andExpect(jsonPath("$.executor.maxWorkers").value(8))
+                .andExpect(jsonPath("$.queueWait.count").isNumber())
+                .andExpect(jsonPath("$.persistence.query.count").isNumber())
+                .andExpect(jsonPath("$.persistence.transaction.count").isNumber())
                 .andExpect(jsonPath("$.instances").isArray());
+    }
+
+    @Test
+    void persistsHttpQueryBatchThroughSingleBatchEvent() throws Exception {
+        List<QueryMetricEvent> events = List.of(queryEvent(), queryEvent(), queryEvent());
+        Set<UUID> eventIds = Set.of(
+                events.get(0).eventId(), events.get(1).eventId(), events.get(2).eventId());
+
+        mockMvc.perform(post("/api/v1/ingest/queries")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsBytes(events)))
+                .andExpect(status().isAccepted())
+                .andExpect(jsonPath("$.accepted").value(3));
+
+        long deadline = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(5);
+        while (queryExecutionRepository.findExistingIds(eventIds).size() < eventIds.size()
+                && System.nanoTime() < deadline) {
+            Thread.sleep(25);
+        }
+
+        org.assertj.core.api.Assertions.assertThat(queryExecutionRepository.findExistingIds(eventIds))
+                .containsExactlyInAnyOrderElementsOf(eventIds);
+    }
+
+    private static QueryMetricEvent queryEvent() {
+        return new QueryMetricEvent(
+                UUID.randomUUID(), null, "batch-test-app", "test", "batch-instance", "main",
+                "postgresql", "select 1", "select ?", List.of(), 0,
+                1_000, Instant.now(), "test-thread", true, null,
+                null, "request-batch", "GET", "/batch", "BatchController#get");
     }
 
 }

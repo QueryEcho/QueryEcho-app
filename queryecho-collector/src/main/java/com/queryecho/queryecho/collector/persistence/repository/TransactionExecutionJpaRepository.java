@@ -3,17 +3,23 @@ package com.queryecho.queryecho.collector.persistence.repository;
 import com.queryecho.queryecho.collector.persistence.entity.TransactionExecutionEntity;
 import com.queryecho.core.dto.TxStatus;
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 public interface TransactionExecutionJpaRepository
         extends JpaRepository<TransactionExecutionEntity, UUID>,
         JpaSpecificationExecutor<TransactionExecutionEntity> {
+
+    @Query("select t.transactionId from TransactionExecutionEntity t where t.transactionId in :ids")
+    Set<UUID> findExistingIds(@Param("ids") Collection<UUID> ids);
 
     @EntityGraph(attributePaths = "pattern")
     List<TransactionExecutionEntity> findAllByOrderByCompletedAtDesc(Pageable pageable);
