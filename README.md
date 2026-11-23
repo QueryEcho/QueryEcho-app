@@ -4,6 +4,18 @@ QueryEcho는 Java/Spring 애플리케이션에서 실행한 JDBC 쿼리와 트�
 
 이 문서는 SDK를 처음 적용하는 사용자를 위한 한국어 가이드입니다. QueryEcho 서버를 준비한 뒤 애플리케이션 환경에 맞는 SDK 하나를 선택해 적용합니다.
 
+## 프로젝트 구조
+
+`대상 애플리케이션 → SDK 계측·전송 → Collector 수신·저장 → 대시보드 조회`
+
+| 역할 | 모듈 | 코드 진입점 |
+|---|---|---|
+| SDK 적용 | `queryecho-java-sdk`, `queryecho-spring-boot-3-starter`, `queryecho-spring-boot-4-starter` | [Java 클라이언트](queryecho-java-sdk/src/main/java/com/queryecho/sdk/QueryEchoClient.java), [Boot 3 자동 설정](queryecho-spring-boot-3-starter/src/main/java/com/queryecho/spring/boot3/QueryEchoAutoConfiguration.java), [Boot 4 자동 설정](queryecho-spring-boot-4-starter/src/main/java/com/queryecho/spring/boot4/QueryEchoAutoConfiguration.java) |
+| SDK 공통 구현 | `queryecho-core`, `queryecho-jdbc`, `queryecho-http-transport` | [JDBC 프록시](queryecho-jdbc/src/main/java/com/queryecho/jdbc/QueryEchoDataSourceProxy.java), [배치 전송](queryecho-http-transport/src/main/java/com/queryecho/transport/http/HttpMetricEventPublisher.java) |
+| 이벤트 수신·저장 | `queryecho-collector` | [수집 API](queryecho-collector/src/main/java/com/queryecho/queryecho/collector/controller/MetricIngestController.java) |
+| 지표 조회·화면 | `queryecho-dashboard` | [쿼리 조회 API](queryecho-dashboard/src/main/java/com/queryecho/queryecho/dashboard/controller/QueryMetricsController.java), [화면 초기화](queryecho-dashboard/src/main/resources/static/js/main.js) |
+| 서버 실행 | `queryecho-app` | [Collector와 대시보드를 실행하는 앱](queryecho-app/src/main/java/com/queryecho/queryecho/QueryEchoApplication.java) |
+
 ## 목차
 
 - [사용할 SDK 선택](#사용할-sdk-선택)

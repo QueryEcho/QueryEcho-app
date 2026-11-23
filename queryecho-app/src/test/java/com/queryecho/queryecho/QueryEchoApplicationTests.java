@@ -25,9 +25,7 @@ import org.springframework.test.web.servlet.MockMvc;
         "spring.datasource.username=sa",
         "spring.datasource.password=",
         "spring.flyway.enabled=false",
-        "spring.jpa.hibernate.ddl-auto=create-drop",
-        "queryecho.demo.enabled=false",
-        "queryecho.sdk.enabled=false"
+        "spring.jpa.hibernate.ddl-auto=create-drop"
 })
 @AutoConfigureMockMvc
 class QueryEchoApplicationTests {
@@ -43,6 +41,12 @@ class QueryEchoApplicationTests {
 
     @Test
     void contextLoads() {
+    }
+
+    @Test
+    void collectorDoesNotExposeDemoApi() throws Exception {
+        mockMvc.perform(post("/api/v1/demo/seed"))
+                .andExpect(status().isNotFound());
     }
 
     @Test
