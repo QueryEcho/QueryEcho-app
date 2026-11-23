@@ -251,7 +251,7 @@ Java 17로 바꾸며, CI는 Boot 3/4 × Java 17/21 조합으로 실행한다.
 ```
 
 Windows에서는 `./gradlew` 대신 `.\gradlew.bat`을 사용한다.
-검증 결과와 남은 범위는 [SDK_VERIFICATION.md](SDK_VERIFICATION.md)에 기록한다.
+자동 검증에 사용하는 자바·스프링 부트 조합과 실행 명령은 [CI 설정](../.github/workflows/ci.yml)에서 확인할 수 있다.
 
 ## 10. 직접 코드를 읽는 순서
 

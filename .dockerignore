@@ -1,5 +1,6 @@
 .git
 .github
+docs/
 .gradle
 .gradle-user-home
 **/.gradle
@@ -8,6 +9,16 @@
 .idea
 .vscode
 *.iml
-.env
+**/.env
+**/.env.*
+**/application-local.*
+**/application-*-local.*
+**/application-secret*.*
+**/*.pem
+**/*.key
+**/*.p12
+**/*.jks
+**/*.keystore
+**/credentials.json
 docker-compose*.yml
 HELP.md
